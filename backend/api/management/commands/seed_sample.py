@@ -9,21 +9,21 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Create property
         property = Property.objects.create(
-            name='Triplex Real Estate',
-            address='123 Main St',
+            name='1210 S 10th Street',
+            address='1210 S 10th Street',
             property_type='triplex',
-            notes='Sample triplex projection from sample.xlsx'
+            notes=''
         )
         self.stdout.write(f'Created property: {property.name}')
 
-        # Create projection with all assumptions from sample.xlsx
+        # Create projection with all assumptions
         projection = Projection.objects.create(
             property=property,
             name='Base Case',
             purchase_year=2026,
             analysis_horizon_years=30,
             sale_year=0,
-            purchase_price=Decimal('499900.00'),
+            purchase_price=Decimal('485000.00'),
             down_payment_pct=Decimal('0.1000'),
             annual_appreciation_pct=Decimal('0.0300'),
             transfer_tax_pct=Decimal('0.0100'),

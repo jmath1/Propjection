@@ -754,7 +754,7 @@ export default function ProjectionResultsPage() {
                       <th className="px-4 py-2 text-left text-gray-900 dark:text-white font-semibold">Year</th>
                       <th className="px-4 py-2 text-right text-gray-900 dark:text-white font-semibold">Property Tax</th>
                       <th className="px-4 py-2 text-right text-gray-900 dark:text-white font-semibold">Insurance</th>
-                      <th className="px-4 py-2 text-right text-gray-900 dark:text-white font-semibold">HOA</th>
+                      {projection.hoa_annual > 0 && <th className="px-4 py-2 text-right text-gray-900 dark:text-white font-semibold">HOA</th>}
                       <th className="px-4 py-2 text-right text-gray-900 dark:text-white font-semibold">Maintenance</th>
                       <th className="px-4 py-2 text-right text-gray-900 dark:text-white font-semibold">Utilities</th>
                       <th className="px-4 py-2 text-right font-bold">Total Operating</th>
@@ -768,7 +768,7 @@ export default function ProjectionResultsPage() {
                         <td className="px-4 py-2">{row.calendar_year}</td>
                         <td className="px-4 py-2 text-right">${row.property_tax.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
                         <td className="px-4 py-2 text-right">${row.insurance.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
-                        <td className="px-4 py-2 text-right">${row.hoa.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        {projection.hoa_annual > 0 && <td className="px-4 py-2 text-right">${row.hoa.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>}
                         <td className="px-4 py-2 text-right">${row.maintenance.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
                         <td className="px-4 py-2 text-right">${row.utilities.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
                         <td className="px-4 py-2 text-right font-medium">${row.total_operating.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
@@ -789,7 +789,7 @@ export default function ProjectionResultsPage() {
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Insurance:</span> ${projection.insurance_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>
                   </div>
                   <div>
-                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">HOA:</span> ${projection.hoa_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>
+                    {projection.hoa_annual > 0 && <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">HOA:</span> ${projection.hoa_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>}
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Utilities:</span> ${projection.utilities_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Inflation Rate:</span> {(projection.expense_inflation_pct * 100).toFixed(2)}%/year</p>
                   </div>
