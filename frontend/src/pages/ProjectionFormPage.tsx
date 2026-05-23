@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Projection, RentalUnit } from '../types';
 import { projectionsAPI, unitsAPI } from '../api/client';
-import FormSection from '../components/FormSection';
-import FormField from '../components/FormField';
-import RentalUnitsEditor from '../components/RentalUnitsEditor';
-import { PERCENTAGE_FIELDS, toDecimalPct } from '../utils/percentageFields';
+import BasicInformationSection from '../components/CreateProjection/BasicInformationSection';
+import AcquisitionCostsSection from '../components/CreateProjection/AcquisitionCostsSection';
+import PropertySection from '../components/CreateProjection/PropertySection';
+import OperatingExpensesSection from '../components/CreateProjection/OperatingExpensesSection';
+import RentalIncomeSection from '../components/CreateProjection/RentalIncomeSection';
+import RentalUnitsSection from '../components/CreateProjection/RentalUnitsSection';
+import { toDecimalPct } from '../utils/percentageFields';
 
 export default function ProjectionFormPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
@@ -108,165 +111,12 @@ export default function ProjectionFormPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        <FormSection title="Basic Information">
-          <FormField label="Projection Name">
-            <input
-              type="text"
-              value={formData.name || ''}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Purchase Year">
-            <input
-              type="number"
-              value={formData.purchase_year || 0}
-              onChange={(e) => handleInputChange('purchase_year', parseInt(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Analysis Horizon (years)">
-            <input
-              type="number"
-              value={formData.analysis_horizon_years || 0}
-              onChange={(e) => handleInputChange('analysis_horizon_years', parseInt(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Sale Year (0 = hold)">
-            <input
-              type="number"
-              value={formData.sale_year || 0}
-              onChange={(e) => handleInputChange('sale_year', parseInt(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-        </FormSection>
-
-        <FormSection title="Property">
-          <FormField label="Purchase Price">
-            <input
-              type="number"
-              value={formData.purchase_price || 0}
-              onChange={(e) => handleInputChange('purchase_price', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Down Payment %">
-            <input
-              type="number"
-              step="0.01"
-              value={formData.down_payment_pct || 0}
-              onChange={(e) => handleInputChange('down_payment_pct', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Annual Appreciation %">
-            <input
-              type="number"
-              step="0.001"
-              value={formData.annual_appreciation_pct || 0}
-              onChange={(e) => handleInputChange('annual_appreciation_pct', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-        </FormSection>
-
-        <FormSection title="Mortgage" cols={3}>
-          <FormField label="Interest Rate %">
-            <input
-              type="number"
-              step="0.001"
-              value={formData.interest_rate || 0}
-              onChange={(e) => handleInputChange('interest_rate', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Term (years)">
-            <input
-              type="number"
-              value={formData.term_years || 0}
-              onChange={(e) => handleInputChange('term_years', parseInt(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="PMI Rate %">
-            <input
-              type="number"
-              step="0.0001"
-              value={formData.pmi_rate || 0}
-              onChange={(e) => handleInputChange('pmi_rate', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-        </FormSection>
-
-        <FormSection title="Operating Expenses">
-          <FormField label="Property Tax %">
-            <input
-              type="number"
-              step="0.001"
-              value={formData.property_tax_pct || 0}
-              onChange={(e) => handleInputChange('property_tax_pct', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Insurance Annual $">
-            <input
-              type="number"
-              value={formData.insurance_annual || 0}
-              onChange={(e) => handleInputChange('insurance_annual', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Maintenance %">
-            <input
-              type="number"
-              step="0.001"
-              value={formData.maintenance_pct || 0}
-              onChange={(e) => handleInputChange('maintenance_pct', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Utilities Annual $">
-            <input
-              type="number"
-              value={formData.utilities_annual || 0}
-              onChange={(e) => handleInputChange('utilities_annual', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-          <FormField label="Expense Inflation %">
-            <input
-              type="number"
-              step="0.001"
-              value={formData.expense_inflation_pct || 0}
-              onChange={(e) => handleInputChange('expense_inflation_pct', parseFloat(e.target.value))}
-              className="form-input"
-            />
-          </FormField>
-        </FormSection>
-
-        <FormSection
-          title="Rental Units"
-          headerExtra={
-            <button
-              type="button"
-              onClick={addUnit}
-              className="btn btn-secondary text-sm"
-            >
-              + Add Unit
-            </button>
-          }
-        >
-          <div className="col-span-full">
-            <RentalUnitsEditor
-              units={units}
-              onChange={handleUnitChange}
-              onRemove={removeUnit}
-            />
-          </div>
-        </FormSection>
+        <BasicInformationSection formData={formData} onInputChange={handleInputChange} />
+        <AcquisitionCostsSection formData={formData} onInputChange={handleInputChange} />
+        <PropertySection formData={formData} onInputChange={handleInputChange} />
+        <OperatingExpensesSection formData={formData} onInputChange={handleInputChange} />
+        <RentalIncomeSection formData={formData} onInputChange={handleInputChange} />
+        <RentalUnitsSection units={units} onUnitChange={handleUnitChange} onAddUnit={addUnit} onRemoveUnit={removeUnit} />
 
         {/* Submit */}
         <div className="flex gap-4">
