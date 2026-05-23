@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Projection, RentalUnit } from '../types';
 import { projectionsAPI, unitsAPI } from '../api/client';
+import FormSection from '../components/FormSection';
+import FormField from '../components/FormField';
+import RentalUnitsEditor from '../components/RentalUnitsEditor';
+import { PERCENTAGE_FIELDS, toDecimalPct } from '../utils/percentageFields';
 
 export default function ProjectionFormPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
@@ -72,23 +76,7 @@ export default function ProjectionFormPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Convert percentage fields from user input (0-100) to decimal format (0-1)
-      // Users always enter percentages, so always divide by 100
-      const percentageFields = [
-        'down_payment_pct', 'annual_appreciation_pct', 'interest_rate', 'pmi_rate',
-        'annual_rent_growth_pct', 'vacancy_rate_pct', 'property_mgmt_pct', 'property_tax_pct',
-        'maintenance_pct', 'expense_inflation_pct', 'selling_costs_pct', 'transfer_tax_pct',
-        'scenario_appreciation_delta', 'scenario_rent_growth_delta', 'scenario_vacancy_delta',
-        'scenario_expense_inflation_delta'
-      ];
-
-      const dataToSubmit = { ...formData };
-      percentageFields.forEach(field => {
-        const value = (dataToSubmit as any)[field];
-        if (field in dataToSubmit && value != null && value !== 0) {
-          (dataToSubmit as any)[field] = value / 100;
-        }
-      });
+      const dataToSubmit = toDecimalPct(formData);
 
       const projection = await projectionsAPI.create(dataToSubmit);
 
@@ -100,6 +88,8 @@ export default function ProjectionFormPage() {
         });
       }
 
+      // Fetch fresh calculations and navigate to results
+      await projectionsAPI.getResults(projection.data.id);
       navigate(`/properties/${propertyId}/projections/${projection.data.id}`);
     } catch (error) {
       console.error('Failed to create projection:', error);
@@ -115,180 +105,148 @@ export default function ProjectionFormPage() {
       <h1 className="text-3xl font-bold mb-8">New Projection</h1>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Basic Info */}
-        <section className="card">
-          <h2 className="text-xl font-bold mb-4 border-b pb-2">Basic Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Projection Name</label>
-              <input
-                type="text"
-                value={formData.name || ''}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Purchase Year</label>
-              <input
-                type="number"
-                value={formData.purchase_year || 0}
-                onChange={(e) => handleInputChange('purchase_year', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Analysis Horizon (years)</label>
-              <input
-                type="number"
-                value={formData.analysis_horizon_years || 0}
-                onChange={(e) => handleInputChange('analysis_horizon_years', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Sale Year (0 = hold)</label>
-              <input
-                type="number"
-                value={formData.sale_year || 0}
-                onChange={(e) => handleInputChange('sale_year', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-          </div>
-        </section>
+        <FormSection title="Basic Information">
+          <FormField label="Projection Name">
+            <input
+              type="text"
+              value={formData.name || ''}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Purchase Year">
+            <input
+              type="number"
+              value={formData.purchase_year || 0}
+              onChange={(e) => handleInputChange('purchase_year', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Analysis Horizon (years)">
+            <input
+              type="number"
+              value={formData.analysis_horizon_years || 0}
+              onChange={(e) => handleInputChange('analysis_horizon_years', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Sale Year (0 = hold)">
+            <input
+              type="number"
+              value={formData.sale_year || 0}
+              onChange={(e) => handleInputChange('sale_year', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+        </FormSection>
 
-        {/* Property Assumptions */}
-        <section className="card">
-          <h2 className="text-xl font-bold mb-4 border-b pb-2">Property</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Purchase Price</label>
-              <input
-                type="number"
-                value={formData.purchase_price || 0}
-                onChange={(e) => handleInputChange('purchase_price', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Down Payment %</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.down_payment_pct || 0}
-                onChange={(e) => handleInputChange('down_payment_pct', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Annual Appreciation %</label>
-              <input
-                type="number"
-                step="0.001"
-                value={formData.annual_appreciation_pct || 0}
-                onChange={(e) => handleInputChange('annual_appreciation_pct', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-          </div>
-        </section>
+        <FormSection title="Property">
+          <FormField label="Purchase Price">
+            <input
+              type="number"
+              value={formData.purchase_price || 0}
+              onChange={(e) => handleInputChange('purchase_price', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Down Payment %">
+            <input
+              type="number"
+              step="0.01"
+              value={formData.down_payment_pct || 0}
+              onChange={(e) => handleInputChange('down_payment_pct', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Annual Appreciation %">
+            <input
+              type="number"
+              step="0.001"
+              value={formData.annual_appreciation_pct || 0}
+              onChange={(e) => handleInputChange('annual_appreciation_pct', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+        </FormSection>
 
-        {/* Mortgage */}
-        <section className="card">
-          <h2 className="text-xl font-bold mb-4 border-b pb-2">Mortgage</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Interest Rate %</label>
-              <input
-                type="number"
-                step="0.001"
-                value={formData.interest_rate || 0}
-                onChange={(e) => handleInputChange('interest_rate', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Term (years)</label>
-              <input
-                type="number"
-                value={formData.term_years || 0}
-                onChange={(e) => handleInputChange('term_years', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">PMI Rate %</label>
-              <input
-                type="number"
-                step="0.0001"
-                value={formData.pmi_rate || 0}
-                onChange={(e) => handleInputChange('pmi_rate', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-          </div>
-        </section>
+        <FormSection title="Mortgage" cols={3}>
+          <FormField label="Interest Rate %">
+            <input
+              type="number"
+              step="0.001"
+              value={formData.interest_rate || 0}
+              onChange={(e) => handleInputChange('interest_rate', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Term (years)">
+            <input
+              type="number"
+              value={formData.term_years || 0}
+              onChange={(e) => handleInputChange('term_years', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="PMI Rate %">
+            <input
+              type="number"
+              step="0.0001"
+              value={formData.pmi_rate || 0}
+              onChange={(e) => handleInputChange('pmi_rate', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+        </FormSection>
 
-        {/* Operating Expenses */}
-        <section className="card">
-          <h2 className="text-xl font-bold mb-4 border-b pb-2">Operating Expenses</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Property Tax %</label>
-              <input
-                type="number"
-                step="0.001"
-                value={formData.property_tax_pct || 0}
-                onChange={(e) => handleInputChange('property_tax_pct', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Insurance Annual $</label>
-              <input
-                type="number"
-                value={formData.insurance_annual || 0}
-                onChange={(e) => handleInputChange('insurance_annual', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Maintenance %</label>
-              <input
-                type="number"
-                step="0.001"
-                value={formData.maintenance_pct || 0}
-                onChange={(e) => handleInputChange('maintenance_pct', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Utilities Annual $</label>
-              <input
-                type="number"
-                value={formData.utilities_annual || 0}
-                onChange={(e) => handleInputChange('utilities_annual', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Expense Inflation %</label>
-              <input
-                type="number"
-                step="0.001"
-                value={formData.expense_inflation_pct || 0}
-                onChange={(e) => handleInputChange('expense_inflation_pct', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-          </div>
-        </section>
+        <FormSection title="Operating Expenses">
+          <FormField label="Property Tax %">
+            <input
+              type="number"
+              step="0.001"
+              value={formData.property_tax_pct || 0}
+              onChange={(e) => handleInputChange('property_tax_pct', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Insurance Annual $">
+            <input
+              type="number"
+              value={formData.insurance_annual || 0}
+              onChange={(e) => handleInputChange('insurance_annual', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Maintenance %">
+            <input
+              type="number"
+              step="0.001"
+              value={formData.maintenance_pct || 0}
+              onChange={(e) => handleInputChange('maintenance_pct', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Utilities Annual $">
+            <input
+              type="number"
+              value={formData.utilities_annual || 0}
+              onChange={(e) => handleInputChange('utilities_annual', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+          <FormField label="Expense Inflation %">
+            <input
+              type="number"
+              step="0.001"
+              value={formData.expense_inflation_pct || 0}
+              onChange={(e) => handleInputChange('expense_inflation_pct', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </FormField>
+        </FormSection>
 
-        {/* Rental Units */}
-        <section className="card">
-          <div className="flex justify-between items-center mb-4 pb-2 border-b">
-            <h2 className="text-xl font-bold">Rental Units</h2>
+        <FormSection
+          title="Rental Units"
+          headerExtra={
             <button
               type="button"
               onClick={addUnit}
@@ -296,50 +254,16 @@ export default function ProjectionFormPage() {
             >
               + Add Unit
             </button>
+          }
+        >
+          <div className="col-span-full">
+            <RentalUnitsEditor
+              units={units}
+              onChange={handleUnitChange}
+              onRemove={removeUnit}
+            />
           </div>
-          <div className="space-y-4">
-            {units.map((unit, index) => (
-              <div key={index} className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-1">Label</label>
-                  <input
-                    type="text"
-                    value={unit.label || ''}
-                    onChange={(e) => handleUnitChange(index, 'label', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-1">Monthly Rent</label>
-                  <input
-                    type="number"
-                    value={unit.monthly_rent || 0}
-                    onChange={(e) => handleUnitChange(index, 'monthly_rent', parseFloat(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-1">Owner-Occupied Years</label>
-                  <input
-                    type="number"
-                    value={unit.owner_occupied_years || 0}
-                    onChange={(e) => handleUnitChange(index, 'owner_occupied_years', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                {units.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeUnit(index)}
-                    className="btn btn-danger px-3"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+        </FormSection>
 
         {/* Submit */}
         <div className="flex gap-4">

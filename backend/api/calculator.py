@@ -43,14 +43,21 @@ class ProjectionCalculator:
             'verdict': verdict,
         }
 
-    def _derive_inputs(self) -> Dict[str, Decimal]:
-        """Calculate derived inputs from assumptions."""
-        purchase_price = self.p.purchase_price
-        down_payment_pct = self.p.down_payment_pct
-        down_payment = purchase_price * down_payment_pct
+    # ==================== CALCULATION HELPERS ====================
 
-        # Acquisition costs
-        transfer_tax = purchase_price * self.p.transfer_tax_pct
+    def _calc_monthly_payment(self, loan_amount: Decimal, annual_rate: Decimal, term_years: int) -> Decimal:
+        """Calculate monthly mortgage payment using standard formula: P*[r(1+r)^n]/[(1+r)^n-1]"""
+        monthly_rate = annual_rate / Decimal(12)
+        months = term_years * 12
+        if monthly_rate > 0:
+            factor = (1 + monthly_rate) ** months
+            return loan_amount * (monthly_rate * factor) / (factor - 1)
+        else:
+            return loan_amount / months
+
+    def _calc_acquisition_costs(self) -> Tuple[Decimal, Decimal]:
+        """Calculate transfer tax and total acquisition costs."""
+        transfer_tax = self.p.purchase_price * self.p.transfer_tax_pct
         total_acq_costs = (
             transfer_tax +
             self.p.lender_fees +
@@ -59,29 +66,154 @@ class ProjectionCalculator:
             self.p.attorney_fees +
             self.p.other_closing_costs
         )
+        return transfer_tax, total_acq_costs
 
-        total_cash_to_close = down_payment + total_acq_costs
-
-        # Mortgage
-        loan_amount = purchase_price - down_payment
-
-        # Monthly payment using standard formula: P * [r(1+r)^n]/[(1+r)^n-1]
-        # where r = monthly rate, n = months, P = principal
-        annual_rate = self.p.interest_rate
-        monthly_rate = annual_rate / Decimal(12)
-        months = self.p.term_years * 12
-
-        if monthly_rate > 0:
-            factor = (1 + monthly_rate) ** months
-            monthly_payment = loan_amount * (monthly_rate * factor) / (factor - 1)
-            annual_payment = monthly_payment * Decimal(12)
-        else:
-            monthly_payment = loan_amount / months
-            annual_payment = monthly_payment * Decimal(12)
-
-        # PMI (monthly)
+    def _calc_pmi(self, loan_amount: Decimal) -> Tuple[Decimal, Decimal]:
+        """Calculate monthly and annual PMI."""
         pmi_monthly = loan_amount * self.p.pmi_rate / Decimal(12)
         pmi_annual = pmi_monthly * Decimal(12)
+        return pmi_monthly, pmi_annual
+
+    def _calc_rent_growth_factor(self, year_num: int) -> Decimal:
+        """Calculate rent growth multiplier for a given year."""
+        return (1 + self.p.annual_rent_growth_pct) ** (year_num - 1)
+
+    def _calc_unit_rent(self, unit, year_num: int, rent_growth_factor: Decimal) -> Decimal:
+        """Calculate rent for a single unit, accounting for owner-occupied years."""
+        if year_num <= unit.owner_occupied_years:
+            return Decimal('0')
+        return unit.monthly_rent * rent_growth_factor
+
+    def _calc_vacancy_loss(self, gross_annual_rent: Decimal) -> Decimal:
+        """Calculate annual vacancy loss."""
+        return gross_annual_rent * self.p.vacancy_rate_pct
+
+    def _calc_mgmt_fee(self, gross_annual_rent: Decimal, vacancy_loss: Decimal) -> Decimal:
+        """Calculate property management fee on effective rent."""
+        return (gross_annual_rent - vacancy_loss) * self.p.property_mgmt_pct
+
+    def _calc_home_value(self, year_num: int) -> Decimal:
+        """Calculate home value after appreciation."""
+        purchase_price = self.p.purchase_price
+        return purchase_price * (1 + self.p.annual_appreciation_pct) ** (year_num - 1)
+
+    def _calc_expense_inflation_factor(self, year_num: int) -> Decimal:
+        """Calculate expense inflation multiplier for a given year."""
+        return (1 + self.p.expense_inflation_pct) ** (year_num - 1)
+
+    def _amortize_year(self, balance: Decimal, monthly_rate: Decimal, monthly_payment: Decimal) -> Tuple[Decimal, Decimal, Decimal]:
+        """Amortize one year of mortgage payments. Returns (ending_balance, annual_interest, annual_principal)."""
+        annual_interest = Decimal('0')
+        annual_principal = Decimal('0')
+        for month in range(12):
+            if balance <= 0:
+                break
+            interest_payment = balance * monthly_rate
+            principal_payment = monthly_payment - interest_payment
+            balance -= principal_payment
+            annual_interest += interest_payment
+            annual_principal += principal_payment
+        balance = max(balance, Decimal('0'))
+        return balance, annual_interest, annual_principal
+
+    def _calc_pmi_for_year(self, balance: Decimal, loan_amount: Decimal) -> Decimal:
+        """Calculate PMI for a year, accounting for LTV-based drop-off (PMI drops at 80% LTV)."""
+        pmi = self.p.pmi_rate * loan_amount / Decimal(12) * Decimal(12)
+        if balance > 0:
+            ltv = balance / loan_amount
+            if ltv <= Decimal('0.80'):
+                return Decimal('0')
+        else:
+            return Decimal('0')
+        return pmi
+
+    def _calc_noi(self, income: Decimal, operating_expenses: Decimal) -> Decimal:
+        """Calculate net operating income."""
+        return income - operating_expenses
+
+    def _calc_cap_rate(self, noi: Decimal, purchase_price: Decimal) -> Decimal:
+        """Calculate cap rate (NOI / purchase price)."""
+        if purchase_price > 0:
+            return noi / purchase_price
+        return Decimal('0')
+
+    def _calc_sale_proceeds(self, home_value: Decimal, loan_balance: Decimal, year_num: int) -> Tuple[Decimal, Decimal]:
+        """Calculate net proceeds and total return if property is sold this year."""
+        if self.p.sale_year == year_num and self.p.sale_year > 0:
+            selling_costs = home_value * self.p.selling_costs_pct
+            net_proceeds = home_value - loan_balance - selling_costs
+            return net_proceeds, net_proceeds
+        return Decimal('0'), Decimal('0')
+
+    def _calc_dscr(self, noi: Decimal, debt_service: Decimal) -> Decimal:
+        """Calculate debt service coverage ratio."""
+        if debt_service > 0:
+            return noi / debt_service
+        return Decimal('0')
+
+    def _verdict_metric(self, value: Decimal, benchmark: float, pass_condition: bool, description: str) -> Dict:
+        """Create a verdict metric entry."""
+        return {
+            'value': float(value),
+            'benchmark': benchmark,
+            'pass': pass_condition,
+            'description': description,
+        }
+
+    def _calc_one_percent_rule(self, gross_annual_rent: Decimal, purchase_price: Decimal) -> Decimal:
+        """Calculate one percent rule: monthly gross rent / price."""
+        if purchase_price > 0:
+            return (gross_annual_rent / 12) / purchase_price
+        return Decimal('0')
+
+    def _calc_grm(self, purchase_price: Decimal, gross_annual_rent: Decimal) -> Decimal:
+        """Calculate gross rent multiplier."""
+        if gross_annual_rent > 0:
+            return purchase_price / gross_annual_rent
+        return Decimal('999')
+
+    def _calc_coc_return(self, cash_flow: Decimal, total_cash_to_close: Decimal) -> Decimal:
+        """Calculate cash-on-cash return."""
+        if total_cash_to_close > 0:
+            return cash_flow / total_cash_to_close
+        return Decimal('0')
+
+    def _calc_break_even_year(self, cashflow_schedule: List[Dict]) -> int:
+        """Find the first year where cumulative cash flow becomes non-negative."""
+        for i, item in enumerate(cashflow_schedule):
+            if item['cumulative_cash_flow'] >= 0:
+                return i + 1
+        return self.p.analysis_horizon_years
+
+    def _calc_moic(self, final_cumulative_cf: Decimal, total_cash_to_close: Decimal) -> Decimal:
+        """Calculate multiple on invested capital (MOIC)."""
+        if total_cash_to_close > 0:
+            return (final_cumulative_cf + total_cash_to_close) / total_cash_to_close
+        return Decimal('1')
+
+    def _calc_implied_irr(self, final_cumulative_cf: Decimal, total_cash_to_close: Decimal, years: int) -> Decimal:
+        """Calculate approximate IRR."""
+        if total_cash_to_close <= 0 or final_cumulative_cf <= 0:
+            return Decimal('0')
+        return (final_cumulative_cf / total_cash_to_close) ** (1 / Decimal(years)) - 1
+
+    # ==================== MAIN CALCULATION METHODS ====================
+
+    def _derive_inputs(self) -> Dict[str, Decimal]:
+        """Calculate derived inputs from assumptions."""
+        purchase_price = self.p.purchase_price
+        down_payment_pct = self.p.down_payment_pct
+        down_payment = purchase_price * down_payment_pct
+
+        transfer_tax, total_acq_costs = self._calc_acquisition_costs()
+        total_cash_to_close = down_payment + total_acq_costs
+
+        loan_amount = purchase_price - down_payment
+        monthly_payment = self._calc_monthly_payment(loan_amount, self.p.interest_rate, self.p.term_years)
+        annual_payment = monthly_payment * Decimal(12)
+
+        pmi_monthly, pmi_annual = self._calc_pmi(loan_amount)
+        monthly_rate = self.p.interest_rate / Decimal(12)
 
         return {
             'purchase_price': purchase_price,
@@ -105,25 +237,19 @@ class ProjectionCalculator:
         for year_num in range(1, self.p.analysis_horizon_years + 1):
             year = self.p.purchase_year + year_num - 1
 
-            # Calculate rent per unit
-            rent_growth_factor = (1 + self.p.annual_rent_growth_pct) ** (year_num - 1)
+            rent_growth_factor = self._calc_rent_growth_factor(year_num)
 
             unit_rents = []
             total_monthly_rent = Decimal('0')
 
             for unit in self.units:
-                # Zero rent during owner-occupied years
-                if year_num <= unit.owner_occupied_years:
-                    unit_rent = Decimal('0')
-                else:
-                    unit_rent = unit.monthly_rent * rent_growth_factor
-
+                unit_rent = self._calc_unit_rent(unit, year_num, rent_growth_factor)
                 unit_rents.append(unit_rent)
                 total_monthly_rent += unit_rent
 
             gross_annual_rent = total_monthly_rent * Decimal(12)
-            vacancy_loss = gross_annual_rent * self.p.vacancy_rate_pct
-            property_mgmt_fee = (gross_annual_rent - vacancy_loss) * self.p.property_mgmt_pct
+            vacancy_loss = self._calc_vacancy_loss(gross_annual_rent)
+            property_mgmt_fee = self._calc_mgmt_fee(gross_annual_rent, vacancy_loss)
             effective_rental_income = gross_annual_rent - vacancy_loss - property_mgmt_fee
 
             schedule.append({
@@ -142,16 +268,12 @@ class ProjectionCalculator:
     def _calculate_expense_schedule(self, derived: Dict) -> List[Dict]:
         """Calculate yearly operating expense schedule."""
         schedule = []
-        purchase_price = derived['purchase_price']
 
         for year_num in range(1, self.p.analysis_horizon_years + 1):
             year = self.p.purchase_year + year_num - 1
 
-            # Home value appreciates
-            home_value = purchase_price * (1 + self.p.annual_appreciation_pct) ** (year_num - 1)
-
-            # Expenses inflate
-            expense_inflation_factor = (1 + self.p.expense_inflation_pct) ** (year_num - 1)
+            home_value = self._calc_home_value(year_num)
+            expense_inflation_factor = self._calc_expense_inflation_factor(year_num)
 
             property_tax = home_value * self.p.property_tax_pct
             insurance = self.p.insurance_annual * expense_inflation_factor
@@ -161,10 +283,7 @@ class ProjectionCalculator:
 
             total_operating = property_tax + insurance + hoa + maintenance + utilities
 
-            # PMI may drop off after 20% equity is paid down
-            # Simplified: keep PMI until loan is paid
             pmi = derived['pmi_annual']
-
             debt_service = derived['annual_payment'] + pmi
             all_in_cost = debt_service + total_operating
 
@@ -195,30 +314,10 @@ class ProjectionCalculator:
         for year_num in range(1, self.p.analysis_horizon_years + 1):
             beginning_balance = balance
 
-            # Annual payment, interest, principal
-            annual_interest = Decimal('0')
-            annual_principal = Decimal('0')
-
-            for month in range(12):
-                if balance <= 0:
-                    break
-                interest_payment = balance * monthly_rate
-                principal_payment = monthly_payment - interest_payment
-                balance -= principal_payment
-                annual_interest += interest_payment
-                annual_principal += principal_payment
-
-            balance = max(balance, Decimal('0'))
+            balance, annual_interest, annual_principal = self._amortize_year(balance, monthly_rate, monthly_payment)
             cumulative_interest += annual_interest
 
-            # PMI drops off when LTV <= 80%
-            pmi = derived['pmi_annual']
-            if balance > 0:
-                ltv = balance / loan_amount
-                if ltv <= Decimal('0.80'):
-                    pmi = Decimal('0')
-            else:
-                pmi = Decimal('0')
+            pmi = self._calc_pmi_for_year(balance, loan_amount)
 
             schedule.append({
                 'year_num': year_num,
@@ -238,7 +337,6 @@ class ProjectionCalculator:
                                    expense_schedule: List[Dict], mortgage_schedule: List[Dict]) -> List[Dict]:
         """Calculate yearly equity and returns."""
         schedule = []
-        purchase_price = derived['purchase_price']
         cumulative_cf = Decimal('0')
 
         for year_num in range(1, self.p.analysis_horizon_years + 1):
@@ -246,32 +344,17 @@ class ProjectionCalculator:
             operating_expenses = Decimal(str(expense_schedule[year_num - 1]['total_operating']))
             debt_service = Decimal(str(expense_schedule[year_num - 1]['debt_service']))
 
-            noi = income - operating_expenses
-
-            # Home value
-            home_value = purchase_price * (1 + self.p.annual_appreciation_pct) ** (year_num - 1)
-
-            # Loan balance from mortgage schedule
+            noi = self._calc_noi(income, operating_expenses)
+            home_value = self._calc_home_value(year_num)
             loan_balance = Decimal(str(mortgage_schedule[year_num - 1]['ending_balance']))
-
-            # Equity
             gross_equity = home_value - loan_balance
 
-            # Cash flow
             annual_cf = income - operating_expenses - debt_service
             cumulative_cf += annual_cf
 
-            # Cap rate (NOI / purchase price)
-            cap_rate = noi / purchase_price if purchase_price > 0 else Decimal('0')
-
-            # If we sell this year, calculate net proceeds
-            if self.p.sale_year == year_num and self.p.sale_year > 0:
-                selling_costs = home_value * self.p.selling_costs_pct
-                net_proceeds = home_value - loan_balance - selling_costs
-                total_return = cumulative_cf + net_proceeds
-            else:
-                net_proceeds = Decimal('0')
-                total_return = Decimal('0')
+            cap_rate = self._calc_cap_rate(noi, derived['purchase_price'])
+            net_proceeds, total_return = self._calc_sale_proceeds(home_value, loan_balance, year_num)
+            total_return = total_return + cumulative_cf if total_return > 0 else Decimal('0')
 
             schedule.append({
                 'year_num': year_num,
@@ -301,18 +384,14 @@ class ProjectionCalculator:
             income = Decimal(str(income_schedule[year_num - 1]['effective_rental_income']))
             operating_expenses = Decimal(str(expense_schedule[year_num - 1]['total_operating']))
             debt_service = Decimal(str(expense_schedule[year_num - 1]['debt_service']))
-            noi = income - operating_expenses
 
+            noi = self._calc_noi(income, operating_expenses)
             annual_cf = noi - debt_service
             monthly_cf = annual_cf / Decimal(12)
-
             cumulative_cf += annual_cf
 
-            # DSCR
-            dscr = noi / debt_service if debt_service > 0 else Decimal('0')
-
-            # Cash-on-cash return (would need cash_to_close to calculate properly)
-            coc_return = Decimal('0')  # Placeholder
+            dscr = self._calc_dscr(noi, debt_service)
+            coc_return = Decimal('0')
 
             schedule.append({
                 'year_num': year_num,
@@ -352,7 +431,6 @@ class ProjectionCalculator:
                            mortgage_schedule: List[Dict], cashflow_schedule: List[Dict]) -> Dict:
         """Calculate deal verdict metrics."""
         purchase_price = derived['purchase_price']
-        down_payment = derived['down_payment']
         total_cash_to_close = derived['total_cash_to_close']
 
         # Extract key year values
@@ -364,86 +442,62 @@ class ProjectionCalculator:
         year3_cf = Decimal(str(cashflow_schedule[2]['annual_cash_flow'])) if len(cashflow_schedule) > 2 else Decimal('0')
         year3_dscr = Decimal(str(cashflow_schedule[2]['dscr'])) if len(cashflow_schedule) > 2 else Decimal('0')
 
-        # Metrics
-        one_percent_rule = year1_income / purchase_price if purchase_price > 0 else Decimal('0')
-        grm = purchase_price / year1_income if year1_income > 0 else Decimal('999')
-        cap_rate_yr1 = year1_noi / purchase_price if purchase_price > 0 else Decimal('0')
-        coc_yr1 = year1_cf / total_cash_to_close if total_cash_to_close > 0 else Decimal('0')
-        coc_yr3 = year3_cf / total_cash_to_close if total_cash_to_close > 0 else Decimal('0')
-
-        # Break-even year
-        break_even_year = None
-        for i, item in enumerate(cashflow_schedule):
-            if item['cumulative_cash_flow'] >= 0:
-                break_even_year = i + 1
-                break
-
-        if break_even_year is None:
-            break_even_year = self.p.analysis_horizon_years
-
-        # Total MOIC (simplified)
         final_cf = Decimal(str(cashflow_schedule[-1]['cumulative_cash_flow']))
-        total_moic = (final_cf + total_cash_to_close) / total_cash_to_close if total_cash_to_close > 0 else Decimal('1')
 
-        # Approximate IRR (simplified)
-        implied_irr = Decimal('0')
-        if final_cf > 0:
-            total_return = final_cf
-            implied_irr = (total_return / total_cash_to_close) ** (1 / Decimal(self.p.analysis_horizon_years)) - 1
+        # Calculate individual metrics
+        one_percent_rule = self._calc_one_percent_rule(year1_income, purchase_price)
+        grm = self._calc_grm(purchase_price, year1_income)
+        cap_rate_yr1 = self._calc_cap_rate(year1_noi, purchase_price)
+        coc_yr1 = self._calc_coc_return(year1_cf, total_cash_to_close)
+        coc_yr3 = self._calc_coc_return(year3_cf, total_cash_to_close)
+        break_even_year = self._calc_break_even_year(cashflow_schedule)
+        total_moic = self._calc_moic(final_cf, total_cash_to_close)
+        implied_irr = self._calc_implied_irr(final_cf, total_cash_to_close, self.p.analysis_horizon_years)
 
         return {
-            'one_percent_rule': {
-                'value': float(one_percent_rule),
-                'benchmark': 0.01,
-                'pass': float(one_percent_rule) >= 0.01,
-                'description': 'Monthly Rent / Price ≥ 1%',
-            },
-            'grm': {
-                'value': float(grm),
-                'benchmark': 10.0,
-                'pass': float(grm) <= 10.0,
-                'description': 'Gross Rent Multiplier ≤ 10x',
-            },
-            'cap_rate_yr1': {
-                'value': float(cap_rate_yr1),
-                'benchmark': 0.06,
-                'pass': float(cap_rate_yr1) >= 0.06,
-                'description': 'Yr 1 Cap Rate ≥ 6%',
-            },
-            'coc_yr1': {
-                'value': float(coc_yr1),
-                'benchmark': 0.0,
-                'pass': float(coc_yr1) >= 0.0,
-                'description': 'Yr 1 Cash-on-Cash ≥ 0%',
-            },
-            'coc_yr3': {
-                'value': float(coc_yr3),
-                'benchmark': 0.04,
-                'pass': float(coc_yr3) >= 0.04,
-                'description': 'Yr 3 Cash-on-Cash ≥ 4%',
-            },
-            'dscr_yr3': {
-                'value': float(year3_dscr),
-                'benchmark': 1.25,
-                'pass': float(year3_dscr) >= 1.25,
-                'description': 'Yr 3 DSCR ≥ 1.25x',
-            },
-            'break_even_year': {
-                'value': break_even_year,
-                'benchmark': 10,
-                'pass': break_even_year <= 10,
-                'description': 'Break-even ≤ 10 years',
-            },
-            'total_moic': {
-                'value': float(total_moic),
-                'benchmark': 3.0,
-                'pass': float(total_moic) >= 3.0,
-                'description': 'Total MOIC ≥ 3x',
-            },
-            'implied_irr': {
-                'value': float(implied_irr),
-                'benchmark': 0.10,
-                'pass': float(implied_irr) >= 0.10,
-                'description': 'Implied IRR ≥ 10%',
-            },
+            'one_percent_rule': self._verdict_metric(
+                one_percent_rule, 0.01,
+                float(one_percent_rule) >= 0.01,
+                'Monthly Rent / Price ≥ 1%'
+            ),
+            'grm': self._verdict_metric(
+                grm, 10.0,
+                float(grm) <= 10.0,
+                'Gross Rent Multiplier ≤ 10x'
+            ),
+            'cap_rate_yr1': self._verdict_metric(
+                cap_rate_yr1, 0.06,
+                float(cap_rate_yr1) >= 0.06,
+                'Yr 1 Cap Rate ≥ 6%'
+            ),
+            'coc_yr1': self._verdict_metric(
+                coc_yr1, 0.0,
+                float(coc_yr1) >= 0.0,
+                'Yr 1 Cash-on-Cash ≥ 0%'
+            ),
+            'coc_yr3': self._verdict_metric(
+                coc_yr3, 0.04,
+                float(coc_yr3) >= 0.04,
+                'Yr 3 Cash-on-Cash ≥ 4%'
+            ),
+            'dscr_yr3': self._verdict_metric(
+                year3_dscr, 1.25,
+                float(year3_dscr) >= 1.25,
+                'Yr 3 DSCR ≥ 1.25x'
+            ),
+            'break_even_year': self._verdict_metric(
+                Decimal(break_even_year), 10,
+                break_even_year <= 10,
+                'Break-even ≤ 10 years'
+            ),
+            'total_moic': self._verdict_metric(
+                total_moic, 3.0,
+                float(total_moic) >= 3.0,
+                'Total MOIC ≥ 3x'
+            ),
+            'implied_irr': self._verdict_metric(
+                implied_irr, 0.10,
+                float(implied_irr) >= 0.10,
+                'Implied IRR ≥ 10%'
+            ),
         }

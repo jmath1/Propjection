@@ -5,7 +5,10 @@ import { projectionsAPI, unitsAPI } from '../api/client';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import clsx from 'clsx';
+import CollapsibleSection from '../components/CollapsibleSection';
+import FormField from '../components/FormField';
+import RentalUnitsEditor from '../components/RentalUnitsEditor';
+import { toDisplayPct, toDecimalPct } from '../utils/percentageFields';
 
 interface Section {
   id: string;
@@ -58,29 +61,10 @@ export default function ProjectionResultsPage() {
     try {
       if (!projectionId) return;
       const response = await projectionsAPI.get(parseInt(projectionId));
-      let projData = response.data;
-
-      // Convert percentage decimals to percentages for display if needed
-      // (in case they were stored incorrectly as decimals like 5.0 instead of 0.05)
-      const percentageFields = [
-        'down_payment_pct', 'annual_appreciation_pct', 'interest_rate', 'pmi_rate',
-        'annual_rent_growth_pct', 'vacancy_rate_pct', 'property_mgmt_pct', 'property_tax_pct',
-        'maintenance_pct', 'expense_inflation_pct', 'selling_costs_pct', 'transfer_tax_pct',
-        'scenario_appreciation_delta', 'scenario_rent_growth_delta', 'scenario_vacancy_delta',
-        'scenario_expense_inflation_delta'
-      ];
-
-      percentageFields.forEach(field => {
-        const value = (projData as any)[field];
-        // If value is between 0 and 1 (proper decimal format), multiply by 100 for display
-        if (value != null && value > 0 && value < 1) {
-          (projData as any)[field] = value * 100;
-        }
-      });
-
+      const projData = toDisplayPct(response.data);
       setProjection(projData);
       setUnits(projData.units || []);
-      recalculate(projData);
+      recalculate(response.data);
     } catch (error) {
       console.error('Failed to load projection:', error);
     } finally {
@@ -122,26 +106,6 @@ export default function ProjectionResultsPage() {
     setSections(sections.map(s => s.id === id ? { ...s, expanded: !s.expanded } : s));
   };
 
-  const convertPercentagesToDecimals = (data: Projection): Projection => {
-    const percentageFields = [
-      'down_payment_pct', 'annual_appreciation_pct', 'interest_rate', 'pmi_rate',
-      'annual_rent_growth_pct', 'vacancy_rate_pct', 'property_mgmt_pct', 'property_tax_pct',
-      'maintenance_pct', 'expense_inflation_pct', 'selling_costs_pct', 'transfer_tax_pct',
-      'scenario_appreciation_delta', 'scenario_rent_growth_delta', 'scenario_vacancy_delta',
-      'scenario_expense_inflation_delta'
-    ];
-
-    const converted = { ...data };
-    percentageFields.forEach(field => {
-      const value = (converted as any)[field];
-      // Always assume user input is a percentage, so divide by 100 to convert to decimal
-      if (field in converted && value != null && value !== 0) {
-        (converted as any)[field] = value / 100;
-      }
-    });
-    return converted;
-  };
-
   if (loading || !projection || !results) {
     return <div className="text-center py-12">Loading projection...</div>;
   }
@@ -155,22 +119,6 @@ export default function ProjectionResultsPage() {
     { id: 'scenarios', label: 'Scenarios' },
     { id: 'verdict', label: 'Verdict' },
   ];
-
-  const CollapsibleSection = ({ section, children }: { section: Section; children: React.ReactNode }) => {
-    const isExpanded = sections.find(s => s.id === section.id)?.expanded ?? false;
-    return (
-      <div className="border-b">
-        <button
-          onClick={() => toggleSection(section.id)}
-          className="w-full px-0 py-3 font-bold text-sm flex justify-between items-center hover:bg-gray-50"
-        >
-          <span>{section.label}</span>
-          <span className="text-xs">{isExpanded ? '▼' : '▶'}</span>
-        </button>
-        {isExpanded && <div className="space-y-2 pb-4 pl-2 pr-2">{children}</div>}
-      </div>
-    );
-  };
 
   return (
     <div>
@@ -198,7 +146,7 @@ export default function ProjectionResultsPage() {
                 if (!projection || !projectionId) return;
                 try {
                   setSaveStatus('saving');
-                  const projectionToSave = convertPercentagesToDecimals(projection);
+                  const projectionToSave = toDecimalPct(projection);
                   await projectionsAPI.update(parseInt(projectionId), projectionToSave);
 
                   for (const unit of units) {
@@ -258,58 +206,62 @@ export default function ProjectionResultsPage() {
 
           <div className="pr-4">
             {/* Basic Info */}
-            <CollapsibleSection section={{ id: 'basic', label: 'Basic Info', expanded: true }}>
-              <div>
-                <label className="text-xs font-medium block mb-1">Name</label>
+            <CollapsibleSection
+              id="basic"
+              label="Basic Info"
+              expanded={sections.find((s: Section) => s.id === 'basic')?.expanded ?? false}
+              onToggle={toggleSection}
+            >
+              <FormField label="Name" compact>
                 <input
                   type="text"
                   value={projection.name || ''}
                   onChange={(e) => handleProjectionChange('name', e.target.value)}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Purchase Year</label>
+              </FormField>
+              <FormField label="Purchase Year" compact>
                 <input
                   type="number"
                   value={projection.purchase_year || 2026}
                   onChange={(e) => handleProjectionChange('purchase_year', parseInt(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Analysis Horizon (years)</label>
+              </FormField>
+              <FormField label="Analysis Horizon (years)" compact>
                 <input
                   type="number"
                   value={projection.analysis_horizon_years || 30}
                   onChange={(e) => handleProjectionChange('analysis_horizon_years', parseInt(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Sale Year (0 = hold)</label>
+              </FormField>
+              <FormField label="Sale Year (0 = hold)" compact>
                 <input
                   type="number"
                   value={projection.sale_year || 0}
                   onChange={(e) => handleProjectionChange('sale_year', parseInt(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
+              </FormField>
             </CollapsibleSection>
 
             {/* Property & Acquisition */}
-            <CollapsibleSection section={{ id: 'property', label: 'Property & Acquisition', expanded: true }}>
-              <div>
-                <label className="text-xs font-medium block mb-1">Purchase Price</label>
+            <CollapsibleSection
+              id="property"
+              label="Property & Acquisition"
+              expanded={sections.find((s: Section) => s.id === 'property')?.expanded ?? false}
+              onToggle={toggleSection}
+            >
+              <FormField label="Purchase Price" compact>
                 <input
                   type="number"
                   value={projection.purchase_price || 0}
                   onChange={(e) => handleProjectionChange('purchase_price', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Down Payment %</label>
+              </FormField>
+              <FormField label="Down Payment %" compact>
                 <input
                   type="number"
                   step="0.01"
@@ -317,9 +269,8 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('down_payment_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Annual Appreciation %</label>
+              </FormField>
+              <FormField label="Annual Appreciation %" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -327,72 +278,70 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('annual_appreciation_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
+              </FormField>
 
               <div className="border-t pt-2 mt-2">
                 <div className="text-xs font-bold text-gray-600 mb-2">Acquisition Costs</div>
-                <div>
-                  <label className="text-xs font-medium block mb-1">Transfer/Sales Tax %</label>
+                <FormField label="Transfer/Sales Tax %" compact>
                   <input
                     type="number"
                     step="0.001"
                     value={projection.transfer_tax_pct || 0}
                     onChange={(e) => handleProjectionChange('transfer_tax_pct', parseFloat(e.target.value))}
-                      className="w-full px-2 py-1 border rounded text-sm"
+                    className="w-full px-2 py-1 border rounded text-sm"
                   />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1">Lender Fees $</label>
+                </FormField>
+                <FormField label="Lender Fees $" compact>
                   <input
                     type="number"
                     value={projection.lender_fees || 0}
                     onChange={(e) => handleProjectionChange('lender_fees', parseFloat(e.target.value))}
-                      className="w-full px-2 py-1 border rounded text-sm"
+                    className="w-full px-2 py-1 border rounded text-sm"
                   />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1">Title Insurance $</label>
+                </FormField>
+                <FormField label="Title Insurance $" compact>
                   <input
                     type="number"
                     value={projection.title_insurance || 0}
                     onChange={(e) => handleProjectionChange('title_insurance', parseFloat(e.target.value))}
-                      className="w-full px-2 py-1 border rounded text-sm"
+                    className="w-full px-2 py-1 border rounded text-sm"
                   />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1">Inspection/Appraisal $</label>
+                </FormField>
+                <FormField label="Inspection/Appraisal $" compact>
                   <input
                     type="number"
                     value={projection.inspection_appraisal || 0}
                     onChange={(e) => handleProjectionChange('inspection_appraisal', parseFloat(e.target.value))}
-                      className="w-full px-2 py-1 border rounded text-sm"
+                    className="w-full px-2 py-1 border rounded text-sm"
                   />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1">Attorney/Recording Fees $</label>
+                </FormField>
+                <FormField label="Attorney/Recording Fees $" compact>
                   <input
                     type="number"
                     value={projection.attorney_fees || 0}
                     onChange={(e) => handleProjectionChange('attorney_fees', parseFloat(e.target.value))}
-                      className="w-full px-2 py-1 border rounded text-sm"
+                    className="w-full px-2 py-1 border rounded text-sm"
                   />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1">Other Closing Costs $</label>
+                </FormField>
+                <FormField label="Other Closing Costs $" compact>
                   <input
                     type="number"
                     value={projection.other_closing_costs || 0}
                     onChange={(e) => handleProjectionChange('other_closing_costs', parseFloat(e.target.value))}
-                      className="w-full px-2 py-1 border rounded text-sm"
+                    className="w-full px-2 py-1 border rounded text-sm"
                   />
-                </div>
+                </FormField>
               </div>
             </CollapsibleSection>
 
             {/* Mortgage */}
-            <CollapsibleSection section={{ id: 'mortgage', label: 'Mortgage', expanded: true }}>
-              <div>
-                <label className="text-xs font-medium block mb-1">Interest Rate %</label>
+            <CollapsibleSection
+              id="mortgage"
+              label="Mortgage"
+              expanded={sections.find((s: Section) => s.id === 'mortgage')?.expanded ?? false}
+              onToggle={toggleSection}
+            >
+              <FormField label="Interest Rate %" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -400,18 +349,16 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('interest_rate', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Term (years)</label>
+              </FormField>
+              <FormField label="Term (years)" compact>
                 <input
                   type="number"
                   value={projection.term_years || 30}
                   onChange={(e) => handleProjectionChange('term_years', parseInt(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">PMI Rate %</label>
+              </FormField>
+              <FormField label="PMI Rate %" compact>
                 <input
                   type="number"
                   step="0.0001"
@@ -419,13 +366,17 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('pmi_rate', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
+              </FormField>
             </CollapsibleSection>
 
             {/* Rental Income */}
-            <CollapsibleSection section={{ id: 'income', label: 'Rental Income', expanded: false }}>
-              <div>
-                <label className="text-xs font-medium block mb-1">Annual Rent Growth %</label>
+            <CollapsibleSection
+              id="income"
+              label="Rental Income"
+              expanded={sections.find((s: Section) => s.id === 'income')?.expanded ?? false}
+              onToggle={toggleSection}
+            >
+              <FormField label="Annual Rent Growth %" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -433,9 +384,8 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('annual_rent_growth_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Vacancy Rate %</label>
+              </FormField>
+              <FormField label="Vacancy Rate %" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -443,9 +393,8 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('vacancy_rate_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Property Mgmt % of Rent</label>
+              </FormField>
+              <FormField label="Property Mgmt % of Rent" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -453,13 +402,17 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('property_mgmt_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
+              </FormField>
             </CollapsibleSection>
 
             {/* Operating Expenses */}
-            <CollapsibleSection section={{ id: 'expenses', label: 'Operating Expenses', expanded: false }}>
-              <div>
-                <label className="text-xs font-medium block mb-1">Property Tax %</label>
+            <CollapsibleSection
+              id="expenses"
+              label="Operating Expenses"
+              expanded={sections.find((s: Section) => s.id === 'expenses')?.expanded ?? false}
+              onToggle={toggleSection}
+            >
+              <FormField label="Property Tax %" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -467,27 +420,24 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('property_tax_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Insurance Annual $</label>
+              </FormField>
+              <FormField label="Insurance Annual $" compact>
                 <input
                   type="number"
                   value={projection.insurance_annual || 0}
                   onChange={(e) => handleProjectionChange('insurance_annual', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">HOA/Condo Fees Annual $</label>
+              </FormField>
+              <FormField label="HOA/Condo Fees Annual $" compact>
                 <input
                   type="number"
                   value={projection.hoa_annual || 0}
                   onChange={(e) => handleProjectionChange('hoa_annual', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Maintenance %</label>
+              </FormField>
+              <FormField label="Maintenance %" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -495,18 +445,16 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('maintenance_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Utilities Annual $</label>
+              </FormField>
+              <FormField label="Utilities Annual $" compact>
                 <input
                   type="number"
                   value={projection.utilities_annual || 0}
                   onChange={(e) => handleProjectionChange('utilities_annual', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Expense Inflation %</label>
+              </FormField>
+              <FormField label="Expense Inflation %" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -514,9 +462,8 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('expense_inflation_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Selling Costs %</label>
+              </FormField>
+              <FormField label="Selling Costs %" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -524,14 +471,18 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('selling_costs_pct', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
+              </FormField>
             </CollapsibleSection>
 
             {/* Scenario Margins */}
-            <CollapsibleSection section={{ id: 'scenarios', label: 'Scenario Margins (Bull/Bear)', expanded: false }}>
+            <CollapsibleSection
+              id="scenarios"
+              label="Scenario Margins (Bull/Bear)"
+              expanded={sections.find((s: Section) => s.id === 'scenarios')?.expanded ?? false}
+              onToggle={toggleSection}
+            >
               <div className="text-xs text-gray-600 mb-2">Adjust assumptions for Bull/Bear scenarios:</div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Appreciation ±%</label>
+              <FormField label="Appreciation ±%" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -539,9 +490,8 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('scenario_appreciation_delta', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Rent Growth ±%</label>
+              </FormField>
+              <FormField label="Rent Growth ±%" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -549,9 +499,8 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('scenario_rent_growth_delta', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Vacancy ±%</label>
+              </FormField>
+              <FormField label="Vacancy ±%" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -559,9 +508,8 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('scenario_vacancy_delta', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Expense Inflation ±%</label>
+              </FormField>
+              <FormField label="Expense Inflation ±%" compact>
                 <input
                   type="number"
                   step="0.001"
@@ -569,41 +517,22 @@ export default function ProjectionResultsPage() {
                   onChange={(e) => handleProjectionChange('scenario_expense_inflation_delta', parseFloat(e.target.value))}
                   className="w-full px-2 py-1 border rounded text-sm"
                 />
-              </div>
+              </FormField>
             </CollapsibleSection>
 
             {/* Units */}
-            <CollapsibleSection section={{ id: 'units', label: 'Rental Units', expanded: true }}>
-              <div className="space-y-3">
-                {units.map((unit, i) => (
-                  <div key={i} className="border rounded p-2 bg-gray-50">
-                    <input
-                      type="text"
-                      value={unit.label || ''}
-                      onChange={(e) => handleUnitChange(i, 'label', e.target.value)}
-                      onBlur={handleUnitBlur}
-                      className="w-full px-2 py-1 border rounded text-sm mb-1 font-medium"
-                      placeholder="Unit label"
-                    />
-                    <div className="text-xs font-medium mb-1">Monthly Rent</div>
-                    <input
-                      type="number"
-                      value={unit.monthly_rent || 0}
-                      onChange={(e) => handleUnitChange(i, 'monthly_rent', parseFloat(e.target.value))}
-                      onBlur={handleUnitBlur}
-                      className="w-full px-2 py-1 border rounded text-sm mb-1"
-                    />
-                    <div className="text-xs font-medium mb-1">Owner-Occupied Years</div>
-                    <input
-                      type="number"
-                      value={unit.owner_occupied_years || 0}
-                      onChange={(e) => handleUnitChange(i, 'owner_occupied_years', parseInt(e.target.value))}
-                      onBlur={handleUnitBlur}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
+            <CollapsibleSection
+              id="units"
+              label="Rental Units"
+              expanded={sections.find((s: Section) => s.id === 'units')?.expanded ?? false}
+              onToggle={toggleSection}
+            >
+              <RentalUnitsEditor
+                units={units}
+                onChange={handleUnitChange}
+                onBlur={handleUnitBlur}
+                compact
+              />
             </CollapsibleSection>
           </div>
         </div>
