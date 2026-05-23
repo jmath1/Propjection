@@ -78,10 +78,13 @@ export default function ProjectionEditPage() {
 
   return (
     <div>
-      <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline mb-4">
+      <button onClick={() => navigate(-1)} className="text-primary-600 dark:text-primary-400 hover:underline mb-6 flex items-center gap-1">
         ← Back
       </button>
-      <h1 className="text-3xl font-bold mb-8">Edit Projection</h1>
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Edit Projection</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">Update your assumptions and see how they affect your projections</p>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <FormSection title="Basic Information">
@@ -90,7 +93,7 @@ export default function ProjectionEditPage() {
               type="text"
               value={formData.name || ''}
               onChange={(e) => handleInputChange('name', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Purchase Year">
@@ -98,7 +101,7 @@ export default function ProjectionEditPage() {
               type="number"
               value={formData.purchase_year || 0}
               onChange={(e) => handleInputChange('purchase_year', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Analysis Horizon (years)">
@@ -106,7 +109,7 @@ export default function ProjectionEditPage() {
               type="number"
               value={formData.analysis_horizon_years || 0}
               onChange={(e) => handleInputChange('analysis_horizon_years', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
         </FormSection>
@@ -117,7 +120,7 @@ export default function ProjectionEditPage() {
               type="number"
               value={formData.purchase_price || 0}
               onChange={(e) => handleInputChange('purchase_price', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Down Payment %">
@@ -126,7 +129,7 @@ export default function ProjectionEditPage() {
               step="0.01"
               value={formData.down_payment_pct || 0}
               onChange={(e) => handleInputChange('down_payment_pct', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Annual Appreciation %">
@@ -135,7 +138,7 @@ export default function ProjectionEditPage() {
               step="0.001"
               value={formData.annual_appreciation_pct || 0}
               onChange={(e) => handleInputChange('annual_appreciation_pct', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
         </FormSection>
@@ -147,7 +150,7 @@ export default function ProjectionEditPage() {
               step="0.001"
               value={formData.interest_rate || 0}
               onChange={(e) => handleInputChange('interest_rate', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Term (years)">
@@ -155,7 +158,7 @@ export default function ProjectionEditPage() {
               type="number"
               value={formData.term_years || 0}
               onChange={(e) => handleInputChange('term_years', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="PMI Rate %">
@@ -164,7 +167,7 @@ export default function ProjectionEditPage() {
               step="0.0001"
               value={formData.pmi_rate || 0}
               onChange={(e) => handleInputChange('pmi_rate', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
         </FormSection>
@@ -176,7 +179,7 @@ export default function ProjectionEditPage() {
               step="0.001"
               value={formData.property_tax_pct || 0}
               onChange={(e) => handleInputChange('property_tax_pct', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Insurance Annual $">
@@ -184,7 +187,7 @@ export default function ProjectionEditPage() {
               type="number"
               value={formData.insurance_annual || 0}
               onChange={(e) => handleInputChange('insurance_annual', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Maintenance %">
@@ -193,7 +196,7 @@ export default function ProjectionEditPage() {
               step="0.001"
               value={formData.maintenance_pct || 0}
               onChange={(e) => handleInputChange('maintenance_pct', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Utilities Annual $">
@@ -201,7 +204,7 @@ export default function ProjectionEditPage() {
               type="number"
               value={formData.utilities_annual || 0}
               onChange={(e) => handleInputChange('utilities_annual', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Expense Inflation %">
@@ -210,7 +213,7 @@ export default function ProjectionEditPage() {
               step="0.001"
               value={formData.expense_inflation_pct || 0}
               onChange={(e) => handleInputChange('expense_inflation_pct', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
         </FormSection>
@@ -222,7 +225,7 @@ export default function ProjectionEditPage() {
               step="0.001"
               value={formData.annual_rent_growth_pct || 0}
               onChange={(e) => handleInputChange('annual_rent_growth_pct', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Vacancy Rate %">
@@ -231,7 +234,7 @@ export default function ProjectionEditPage() {
               step="0.001"
               value={formData.vacancy_rate_pct || 0}
               onChange={(e) => handleInputChange('vacancy_rate_pct', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
           <FormField label="Property Mgmt %">
@@ -240,7 +243,7 @@ export default function ProjectionEditPage() {
               step="0.001"
               value={formData.property_mgmt_pct || 0}
               onChange={(e) => handleInputChange('property_mgmt_pct', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="form-input"
             />
           </FormField>
         </FormSection>

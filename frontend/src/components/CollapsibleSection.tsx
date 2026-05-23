@@ -1,3 +1,5 @@
+import { ChevronDown } from 'lucide-react';
+
 interface CollapsibleSectionProps {
   id: string;
   label: string;
@@ -14,15 +16,22 @@ export default function CollapsibleSection({
   children,
 }: CollapsibleSectionProps) {
   return (
-    <div className="border-b">
+    <div className="border-b border-gray-200 dark:border-slate-700">
       <button
         onClick={() => onToggle(id)}
-        className="w-full px-0 py-3 font-bold text-sm flex justify-between items-center hover:bg-gray-50"
+        className="w-full px-4 py-3.5 font-semibold text-sm flex justify-between items-center hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors text-gray-900 dark:text-gray-100"
       >
         <span>{label}</span>
-        <span className="text-xs">{expanded ? '▼' : '▶'}</span>
+        <ChevronDown
+          size={20}
+          className={`transform transition-transform duration-200 text-gray-600 dark:text-gray-400 ${expanded ? 'rotate-180' : ''}`}
+        />
       </button>
-      {expanded && <div className="space-y-2 pb-4 pl-2 pr-2">{children}</div>}
+      {expanded && (
+        <div className="space-y-3 pb-4 px-4 bg-gray-50 dark:bg-slate-700/30">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
