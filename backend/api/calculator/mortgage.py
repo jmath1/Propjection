@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple
 class MortgageScheduleMixin:
     """Calculates year-by-year mortgage amortization and PMI tracking."""
 
-    def _amortize_year(self, balance: Decimal, monthly_rate: Decimal, monthly_payment: Decimal) -> Tuple[Decimal, Decimal, Decimal]:
+    def _amortize_year(self, balance: Decimal, monthly_rate: Decimal, monthly_payment: Decimal, monthly_prepayment: Decimal = Decimal('0')) -> Tuple[Decimal, Decimal, Decimal]:
         """Amortize one year of mortgage payments. Returns (ending_balance, annual_interest, annual_principal)."""
         annual_interest = Decimal('0')
         annual_principal = Decimal('0')
@@ -14,9 +14,11 @@ class MortgageScheduleMixin:
                 break
             interest_payment = balance * monthly_rate
             principal_payment = monthly_payment - interest_payment
-            balance -= principal_payment
+            # Apply prepayment to reduce principal
+            total_principal_payment = principal_payment + monthly_prepayment
+            balance -= total_principal_payment
             annual_interest += interest_payment
-            annual_principal += principal_payment
+            annual_principal += total_principal_payment
         balance = max(balance, Decimal('0'))
         return balance, annual_interest, annual_principal
 
@@ -37,13 +39,14 @@ class MortgageScheduleMixin:
         balance = derived['loan_amount']
         monthly_rate = derived['monthly_rate']
         monthly_payment = derived['monthly_payment']
+        monthly_prepayment = Decimal(str(self.p.monthly_prepayment)) if hasattr(self.p, 'monthly_prepayment') else Decimal('0')
         cumulative_interest = Decimal('0')
         loan_amount = derived['loan_amount']
 
         for year_num in range(1, self.p.analysis_horizon_years + 1):
             beginning_balance = balance
 
-            balance, annual_interest, annual_principal = self._amortize_year(balance, monthly_rate, monthly_payment)
+            balance, annual_interest, annual_principal = self._amortize_year(balance, monthly_rate, monthly_payment, monthly_prepayment)
             cumulative_interest += annual_interest
 
             pmi = self._calc_pmi_for_year(balance, loan_amount)

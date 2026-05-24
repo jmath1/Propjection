@@ -1,6 +1,6 @@
-import { Projection } from '../../types';
-import FormSection from '../FormSection';
-import FormField from '../FormField';
+import { Projection } from '../types';
+import FormSection from './FormSection';
+import FormField from './FormField';
 
 interface Props {
   formData: Partial<Projection>;
@@ -50,6 +50,14 @@ export default function MortgageSection({ formData, onInputChange }: Props) {
           step="0.001"
           value={formData.refinance_rate || 0}
           onChange={(e) => onInputChange('refinance_rate', parseFloat(e.target.value))}
+          className="form-input"
+        />
+      </FormField>
+      <FormField label="Monthly Prepayment $" hint="Extra monthly principal payment">
+        <input
+          type="number"
+          value={formData.monthly_prepayment || 0}
+          onChange={(e) => onInputChange('monthly_prepayment', parseFloat(e.target.value))}
           className="form-input"
         />
       </FormField>

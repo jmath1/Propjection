@@ -4,7 +4,7 @@ import { Projection, RentalUnit } from '../types';
 import { projectionsAPI, unitsAPI } from '../api/client';
 import BasicInformationSection from '../components/EditProjection/BasicInformationSection';
 import PropertySection from '../components/EditProjection/PropertySection';
-import MortgageSection from '../components/EditProjection/MortgageSection';
+import MortgageSection from '../components/MortgageSection';
 import OperatingExpensesSection from '../components/EditProjection/OperatingExpensesSection';
 import RentalIncomeSection from '../components/EditProjection/RentalIncomeSection';
 import RentalUnitsSection from '../components/EditProjection/RentalUnitsSection';

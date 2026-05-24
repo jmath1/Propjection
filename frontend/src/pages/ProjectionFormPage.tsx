@@ -4,7 +4,7 @@ import { Projection, RentalUnit } from '../types';
 import { projectionsAPI, unitsAPI } from '../api/client';
 import BasicInformationSection from '../components/CreateProjection/BasicInformationSection';
 import AcquisitionCostsSection from '../components/CreateProjection/AcquisitionCostsSection';
-import PropertySection from '../components/CreateProjection/PropertySection';
+import MortgageSection from '../components/MortgageSection';
 import OperatingExpensesSection from '../components/CreateProjection/OperatingExpensesSection';
 import RentalIncomeSection from '../components/CreateProjection/RentalIncomeSection';
 import RentalUnitsSection from '../components/CreateProjection/RentalUnitsSection';
@@ -34,6 +34,7 @@ export default function ProjectionFormPage() {
     pmi_rate: 0.005,
     refinance_year: 0,
     refinance_rate: 0,
+    monthly_prepayment: 0,
     annual_rent_growth_pct: 0.03,
     vacancy_rate_pct: 0,
     property_mgmt_pct: 0.08,
@@ -115,7 +116,7 @@ export default function ProjectionFormPage() {
       <form onSubmit={handleSubmit} className="space-y-8">
         <BasicInformationSection formData={formData} onInputChange={handleInputChange} />
         <AcquisitionCostsSection formData={formData} onInputChange={handleInputChange} />
-        <PropertySection formData={formData} onInputChange={handleInputChange} />
+        <MortgageSection formData={formData} onInputChange={handleInputChange} />
         <OperatingExpensesSection formData={formData} onInputChange={handleInputChange} />
         <RentalIncomeSection formData={formData} onInputChange={handleInputChange} />
         <RentalUnitsSection units={units} onUnitChange={handleUnitChange} onAddUnit={addUnit} onRemoveUnit={removeUnit} />

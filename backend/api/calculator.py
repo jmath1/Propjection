@@ -103,7 +103,7 @@ class ProjectionCalculator:
         """Calculate expense inflation multiplier for a given year."""
         return (1 + self.p.expense_inflation_pct) ** (year_num - 1)
 
-    def _amortize_year(self, balance: Decimal, monthly_rate: Decimal, monthly_payment: Decimal) -> Tuple[Decimal, Decimal, Decimal]:
+    def _amortize_year(self, balance: Decimal, monthly_rate: Decimal, monthly_payment: Decimal, monthly_prepayment: Decimal = Decimal('0')) -> Tuple[Decimal, Decimal, Decimal]:
         """Amortize one year of mortgage payments. Returns (ending_balance, annual_interest, annual_principal)."""
         annual_interest = Decimal('0')
         annual_principal = Decimal('0')
@@ -112,9 +112,10 @@ class ProjectionCalculator:
                 break
             interest_payment = balance * monthly_rate
             principal_payment = monthly_payment - interest_payment
-            balance -= principal_payment
+            total_principal_payment = principal_payment + monthly_prepayment
+            balance -= total_principal_payment
             annual_interest += interest_payment
-            annual_principal += principal_payment
+            annual_principal += total_principal_payment
         balance = max(balance, Decimal('0'))
         return balance, annual_interest, annual_principal
 
@@ -235,13 +236,14 @@ class ProjectionCalculator:
         # Handle refinancing if configured
         refi_year = int(getattr(self.p, 'refinance_year', 0) or 0)
         refi_rate = self.p.refinance_rate if getattr(self.p, 'refinance_rate', None) else None
+        monthly_prepayment = Decimal(str(self.p.monthly_prepayment)) if hasattr(self.p, 'monthly_prepayment') else Decimal('0')
 
         if refi_year > 0 and refi_rate and refi_rate > 0:
             # Simulate amortization to find balance just before refi year
             refi_balance = loan_amount
             refi_mr = self.p.interest_rate / Decimal(12)
             for _ in range(refi_year - 1):
-                refi_balance, _, _ = self._amortize_year(refi_balance, refi_mr, monthly_payment)
+                refi_balance, _, _ = self._amortize_year(refi_balance, refi_mr, monthly_payment, monthly_prepayment)
             remaining_term = max(self.p.term_years - (refi_year - 1), 1)
             refi_mp = self._calc_monthly_payment(refi_balance, refi_rate, remaining_term)
             derived.update({
@@ -338,6 +340,7 @@ class ProjectionCalculator:
         balance = derived['loan_amount']
         monthly_rate = derived['monthly_rate']
         monthly_payment = derived['monthly_payment']
+        monthly_prepayment = Decimal(str(self.p.monthly_prepayment)) if hasattr(self.p, 'monthly_prepayment') else Decimal('0')
         cumulative_interest = Decimal('0')
         loan_amount = derived['loan_amount']
 
@@ -349,7 +352,7 @@ class ProjectionCalculator:
 
             beginning_balance = balance
 
-            balance, annual_interest, annual_principal = self._amortize_year(balance, monthly_rate, monthly_payment)
+            balance, annual_interest, annual_principal = self._amortize_year(balance, monthly_rate, monthly_payment, monthly_prepayment)
             cumulative_interest += annual_interest
 
             pmi = self._calc_pmi_for_year(balance, loan_amount)

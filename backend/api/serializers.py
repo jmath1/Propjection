@@ -21,7 +21,7 @@ class ProjectionSerializer(serializers.ModelSerializer):
             'purchase_price', 'down_payment_pct', 'annual_appreciation_pct',
             'transfer_tax_pct', 'lender_fees', 'title_insurance', 'inspection_appraisal',
             'attorney_fees', 'other_closing_costs',
-            'interest_rate', 'term_years', 'pmi_rate',
+            'interest_rate', 'term_years', 'pmi_rate', 'refinance_year', 'refinance_rate', 'monthly_prepayment',
             'annual_rent_growth_pct', 'vacancy_rate_pct', 'property_mgmt_pct',
             'property_tax_pct', 'insurance_annual', 'hoa_annual', 'maintenance_pct',
             'utilities_annual', 'expense_inflation_pct',

@@ -385,6 +385,14 @@ export default function ProjectionResultsPage() {
                   className="form-input text-sm"
                 />
               </FormField>
+              <FormField label="Monthly Prepayment $" compact hint="Extra monthly principal payment">
+                <input
+                  type="number"
+                  value={projection.monthly_prepayment || 0}
+                  onChange={(e: any) => handleProjectionChange('monthly_prepayment', parseFloat(e.target.value))}
+                  className="form-input text-sm"
+                />
+              </FormField>
             </CollapsibleSection>
 
             {/* Rental Income */}
@@ -871,14 +879,14 @@ export default function ProjectionResultsPage() {
                 <h3 className="font-bold mb-3 text-gray-900 dark:text-white">Expense Components</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Property Tax:</span> Home value × {projection.property_tax_pct.toFixed(2)}%</p>
-                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Maintenance:</span> Home value × {projection.maintenance_pct.toFixed(2)}%</p>
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Property Tax:</span> Home value × {(projection.property_tax_pct * 100).toFixed(2)}%</p>
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Maintenance:</span> Home value × {(projection.maintenance_pct * 100).toFixed(2)}%</p>
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Insurance:</span> ${projection.insurance_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>
                   </div>
                   <div>
                     {projection.hoa_annual > 0 && <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">HOA:</span> ${projection.hoa_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>}
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Utilities:</span> ${projection.utilities_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>
-                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Inflation Rate:</span> {projection.expense_inflation_pct.toFixed(2)}%/year</p>
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Inflation Rate:</span> {(projection.expense_inflation_pct * 100).toFixed(2)}%/year</p>
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-primary-200 dark:border-primary-700">

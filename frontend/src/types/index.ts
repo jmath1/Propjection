@@ -27,6 +27,7 @@ export interface Projection {
   pmi_rate: number;
   refinance_year?: number;
   refinance_rate?: number;
+  monthly_prepayment: number;
   annual_rent_growth_pct: number;
   vacancy_rate_pct: number;
   property_mgmt_pct: number;

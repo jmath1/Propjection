@@ -1,0 +1,46 @@
+name: propjection
+services:
+- name: api
+  github:
+    branch: main
+    repo: jmath1/Propjection
+  build_command: pip install -r requirements.txt
+  run_command: gunicorn config.wsgi:application --bind 0.0.0.0:8080
+  http_port: 8080
+  source_dir: backend
+  env:
+  - key: DEBUG
+    value: "False"
+  - key: ALLOWED_HOSTS
+    value: api-propjection.ondigitalocean.app
+  - key: SECRET_KEY
+    scope: RUN_AND_BUILD_TIME
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+  - key: DO_INFERENCE_MODEL_ACCESS_TOKEN
+    scope: RUN_AND_BUILD_TIME
+  - key: DJANGO_SETTINGS_MODULE
+    value: config.settings
+  database:
+    name: postgres
+    version: "14"
+  health_check:
+    http_path: /api/properties/
+
+static_sites:
+- name: frontend
+  github:
+    branch: main
+    repo: jmath1/Propjection
+  source_dir: frontend
+  build_command: npm install && npm run build
+  output_dir: dist
+  routes:
+  - path: /
+    match_prefix: true
+
+databases:
+- name: postgres
+  engine: PG
+  version: "14"
+  production: true
