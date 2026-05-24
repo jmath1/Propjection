@@ -29,6 +29,8 @@ export default function ProjectionResultsPage() {
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [sections, setSections] = useState<Section[]>([
     { id: 'basic', label: 'Basic Info', expanded: true },
@@ -366,6 +368,23 @@ export default function ProjectionResultsPage() {
                   className="form-input text-sm"
                 />
               </FormField>
+              <FormField label="Refinance Year" compact hint="0 = none">
+                <input
+                  type="number"
+                  value={projection.refinance_year || 0}
+                  onChange={(e) => handleProjectionChange('refinance_year', parseInt(e.target.value))}
+                  className="form-input text-sm"
+                />
+              </FormField>
+              <FormField label="Refinance Rate %" compact>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={projection.refinance_rate || 0}
+                  onChange={(e) => handleProjectionChange('refinance_rate', parseFloat(e.target.value))}
+                  className="form-input text-sm"
+                />
+              </FormField>
             </CollapsibleSection>
 
             {/* Rental Income */}
@@ -616,6 +635,47 @@ export default function ProjectionResultsPage() {
                   ${results.derived.total_cash_to_close.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 </div>
               </div>
+
+              {/* AI Summary Section */}
+              <div className="col-span-2 flex gap-3 items-center justify-between p-4 rounded-lg border border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Deal Summary</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">Get an AI-powered analysis of this investment</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!projectionId) return;
+                    setSummaryLoading(true);
+                    try {
+                      const response = await projectionsAPI.getSummary(parseInt(projectionId));
+                      setSummary(response.data.summary);
+                    } catch (error) {
+                      console.error('Failed to generate summary:', error);
+                      setSummary('Error generating summary. Please try again.');
+                    } finally {
+                      setSummaryLoading(false);
+                    }
+                  }}
+                  disabled={summaryLoading}
+                  className="whitespace-nowrap bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold py-2 px-6 rounded-lg transition-all"
+                >
+                  {summaryLoading ? 'Generating...' : '✨ Analyze'}
+                </button>
+              </div>
+
+              {/* AI Summary Result */}
+              {summary && (
+                <div className="col-span-2 card bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900 dark:to-blue-900">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">✨</div>
+                    <div className="flex-1">
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {summary}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -811,14 +871,14 @@ export default function ProjectionResultsPage() {
                 <h3 className="font-bold mb-3 text-gray-900 dark:text-white">Expense Components</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Property Tax:</span> Home value × {(projection.property_tax_pct * 100).toFixed(2)}%</p>
-                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Maintenance:</span> Home value × {(projection.maintenance_pct * 100).toFixed(2)}%</p>
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Property Tax:</span> Home value × {projection.property_tax_pct.toFixed(2)}%</p>
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Maintenance:</span> Home value × {projection.maintenance_pct.toFixed(2)}%</p>
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Insurance:</span> ${projection.insurance_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>
                   </div>
                   <div>
                     {projection.hoa_annual > 0 && <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">HOA:</span> ${projection.hoa_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>}
                     <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Utilities:</span> ${projection.utilities_annual.toLocaleString('en-US', { maximumFractionDigits: 0 })}/year + inflation</p>
-                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Inflation Rate:</span> {(projection.expense_inflation_pct * 100).toFixed(2)}%/year</p>
+                    <p className="text-gray-700 dark:text-gray-300"><span className="font-medium">Inflation Rate:</span> {projection.expense_inflation_pct.toFixed(2)}%/year</p>
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-primary-200 dark:border-primary-700">

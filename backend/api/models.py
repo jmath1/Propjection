@@ -54,6 +54,8 @@ class Projection(models.Model):
     interest_rate = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.0650'))  # 6.5%
     term_years = models.IntegerField(default=30)
     pmi_rate = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.0050'))  # 0.5%
+    refinance_year = models.PositiveIntegerField(default=0)  # 0 = no refinance
+    refinance_rate = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
 
     # Rental
     annual_rent_growth_pct = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.0300'))  # 3%

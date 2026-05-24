@@ -25,6 +25,8 @@ export interface Projection {
   interest_rate: number;
   term_years: number;
   pmi_rate: number;
+  refinance_year?: number;
+  refinance_rate?: number;
   annual_rent_growth_pct: number;
   vacancy_rate_pct: number;
   property_mgmt_pct: number;
@@ -108,6 +110,7 @@ export interface MortgageRow {
   ending_balance: number;
   cumulative_interest: number;
   pmi: number;
+  refinanced?: boolean;
 }
 
 export interface EquityRow {

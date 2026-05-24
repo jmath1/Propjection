@@ -41,6 +41,7 @@ export const projectionsAPI = {
   getResults: (id: number) => client.get<ProjectionResults>(`/projections/${id}/results/`),
   getScenarios: (id: number) => client.get(`/projections/${id}/scenarios/`),
   getVerdict: (id: number) => client.get(`/projections/${id}/verdict/`),
+  getSummary: (id: number) => client.get<{ summary: string }>(`/projections/${id}/summary/`),
   duplicate: (id: number, name?: string) =>
     client.post<Projection>(`/projections/${id}/duplicate/`, { name: name || undefined }),
 };

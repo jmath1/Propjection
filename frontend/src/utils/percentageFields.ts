@@ -5,6 +5,7 @@ export const PERCENTAGE_FIELDS = [
   'annual_appreciation_pct',
   'interest_rate',
   'pmi_rate',
+  'refinance_rate',
   'annual_rent_growth_pct',
   'vacancy_rate_pct',
   'property_mgmt_pct',

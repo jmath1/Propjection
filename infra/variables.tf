@@ -18,6 +18,10 @@ variable "image" {
   description = "Droplet image"
 }
 
+variable "default_ssh_key" {
+    default = "~/.ssh/id_rsa.pub"
+}
+
 variable "ssh_keys" {
   description = "List of SSH key IDs or fingerprints to enable SSH access"
   type        = list(string)

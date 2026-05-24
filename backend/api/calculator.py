@@ -217,7 +217,7 @@ class ProjectionCalculator:
         pmi_monthly, pmi_annual = self._calc_pmi(loan_amount)
         monthly_rate = self.p.interest_rate / Decimal(12)
 
-        return {
+        derived = {
             'purchase_price': purchase_price,
             'down_payment': down_payment,
             'down_payment_pct': down_payment_pct,
@@ -231,6 +231,30 @@ class ProjectionCalculator:
             'pmi_annual': pmi_annual,
             'monthly_rate': monthly_rate,
         }
+
+        # Handle refinancing if configured
+        refi_year = int(getattr(self.p, 'refinance_year', 0) or 0)
+        refi_rate = self.p.refinance_rate if getattr(self.p, 'refinance_rate', None) else None
+
+        if refi_year > 0 and refi_rate and refi_rate > 0:
+            # Simulate amortization to find balance just before refi year
+            refi_balance = loan_amount
+            refi_mr = self.p.interest_rate / Decimal(12)
+            for _ in range(refi_year - 1):
+                refi_balance, _, _ = self._amortize_year(refi_balance, refi_mr, monthly_payment)
+            remaining_term = max(self.p.term_years - (refi_year - 1), 1)
+            refi_mp = self._calc_monthly_payment(refi_balance, refi_rate, remaining_term)
+            derived.update({
+                'has_refinance': True,
+                'refinance_year': refi_year,
+                'refinance_monthly_rate': refi_rate / Decimal(12),
+                'refinance_monthly_payment': refi_mp,
+                'refinance_annual_payment': refi_mp * Decimal(12),
+            })
+        else:
+            derived['has_refinance'] = False
+
+        return derived
 
     def _calculate_income_schedule(self, derived: Dict) -> List[Dict]:
         """Calculate yearly rental income schedule."""
@@ -286,7 +310,11 @@ class ProjectionCalculator:
             total_operating = property_tax + insurance + hoa + maintenance + utilities
 
             pmi = derived['pmi_annual']
-            debt_service = derived['annual_payment'] + pmi
+            if derived.get('has_refinance') and year_num >= derived['refinance_year']:
+                annual_payment = derived['refinance_annual_payment']
+            else:
+                annual_payment = derived['annual_payment']
+            debt_service = annual_payment + pmi
             all_in_cost = debt_service + total_operating
 
             schedule.append({
@@ -314,12 +342,18 @@ class ProjectionCalculator:
         loan_amount = derived['loan_amount']
 
         for year_num in range(1, self.p.analysis_horizon_years + 1):
+            # Switch to refinanced rate/payment if we hit the refinance year
+            if derived.get('has_refinance') and year_num == derived['refinance_year']:
+                monthly_rate = derived['refinance_monthly_rate']
+                monthly_payment = derived['refinance_monthly_payment']
+
             beginning_balance = balance
 
             balance, annual_interest, annual_principal = self._amortize_year(balance, monthly_rate, monthly_payment)
             cumulative_interest += annual_interest
 
             pmi = self._calc_pmi_for_year(balance, loan_amount)
+            refinanced = derived.get('has_refinance') and year_num >= derived.get('refinance_year', 0)
 
             schedule.append({
                 'year_num': year_num,
@@ -331,6 +365,7 @@ class ProjectionCalculator:
                 'ending_balance': float(balance),
                 'cumulative_interest': float(cumulative_interest),
                 'pmi': float(pmi),
+                'refinanced': refinanced,
             })
 
         return schedule

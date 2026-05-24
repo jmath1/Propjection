@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from .models import Property, Projection, RentalUnit
 from .serializers import PropertySerializer, ProjectionSerializer, RentalUnitSerializer, ProjectionResultsSerializer, LoginSerializer, UserSerializer
 from .calculator import ProjectionCalculator
+from .summarizer import generate_deal_summary
 
 
 class PropertyViewSet(viewsets.ModelViewSet):
@@ -73,6 +74,18 @@ class ProjectionViewSet(viewsets.ModelViewSet):
         full_results = calculator.calculate()
 
         return Response(full_results['verdict'])
+
+    @action(detail=True, methods=['get'])
+    def summary(self, request, pk=None):
+        """Get AI-generated plain-English deal summary."""
+        projection = self.get_object()
+        units = projection.units.all()
+
+        calculator = ProjectionCalculator(projection, units)
+        results = calculator.calculate()
+
+        summary_text = generate_deal_summary(projection, results)
+        return Response({'summary': summary_text})
 
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):

@@ -32,6 +32,8 @@ export default function ProjectionFormPage() {
     interest_rate: 0.065,
     term_years: 30,
     pmi_rate: 0.005,
+    refinance_year: 0,
+    refinance_rate: 0,
     annual_rent_growth_pct: 0.03,
     vacancy_rate_pct: 0,
     property_mgmt_pct: 0.08,

@@ -1,4 +1,4 @@
-.PHONY: help build up down logs migrate shell seed install clean deploy-prod
+.PHONY: help build up down logs migrate shell seed install clean deploy-prod tf_init tf_apply ssh
 
 help:
 	@echo "Propjection - Real Estate Projection Tool"
@@ -62,3 +62,16 @@ test-frontend:
 deploy-prod:
 	docker compose -f docker-compose.yml pull
 	docker compose -f docker-compose.yml up -d --build
+
+tf_init:
+	terraform -chdir=infra init
+
+tf_apply:
+	terraform -chdir=infra init
+	terraform -chdir=infra apply -auto-approve
+
+tf_destroy:
+	terraform -chdir=infra destroy -auto-approve
+	
+ssh:
+	ssh -i ~/.ssh/id_rsa root@$$(terraform -chdir=infra output -raw droplet_ip)
