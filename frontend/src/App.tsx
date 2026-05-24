@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Sun, Moon, LogOut } from 'lucide-react';
+import { Sun, Moon, LogOut, Building2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import PropertiesPage from './pages/PropertiesPage';
 import PropertyDetailPage from './pages/PropertyDetailPage';
@@ -37,10 +37,15 @@ function AppContent() {
       <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shadow-sm">
         <nav className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
           <div>
-            <a href="/" className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent hover:from-primary-700 hover:to-primary-800 transition-all">
-              Propjection
+            <a href="/" className="flex items-center gap-3">
+              <Building2 size={32} className="text-primary-600 dark:text-primary-400" />
+              <div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent hover:from-primary-700 hover:to-primary-800 transition-all">
+                  Propjection
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Real Estate Projection Tool</p>
+              </div>
             </a>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Real Estate Projection Tool</p>
           </div>
           <div className="flex items-center gap-4">
             {user && (

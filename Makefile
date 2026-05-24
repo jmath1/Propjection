@@ -1,4 +1,4 @@
-.PHONY: help build up down logs migrate shell seed install clean
+.PHONY: help build up down logs migrate shell seed install clean deploy-prod
 
 help:
 	@echo "Propjection - Real Estate Projection Tool"
@@ -58,3 +58,7 @@ test-api:
 
 test-frontend:
 	@echo "Frontend is running at http://localhost:5173"
+
+deploy-prod:
+	docker compose -f docker-compose.yml pull
+	docker compose -f docker-compose.yml up -d --build

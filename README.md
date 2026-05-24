@@ -188,14 +188,17 @@ make shell          # Django shell
 
 ## Roadmap
 
-- [ ] User authentication & multi-user support
+- [x] User authentication
+- [ ] Multi user support
+- [x] CI/CD
+- [x] Deployment
 - [ ] Export projections to PDF/Excel
-- [ ] Historical comparison & version tracking
-- [ ] Tax Forecast
+- [ ] Refinance Feature ( Add input of Refinance Year and Refinance Rate)
+- [x] Tax Forecast
 - [ ] Combinining scenarios for a cummulative model over a timeline
 - [ ] Other Advanced scenario modeling
-- [ ] Team collaboration
-- [ ] Mobile app
+- [ ] Using LLM to better describe and design deals in words
+- [ ] MLS API integration 
 
 ## License
 

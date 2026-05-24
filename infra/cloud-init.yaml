@@ -1,0 +1,6 @@
+#cloud-config
+runcmd:
+  - cd /root
+  - git clone https://github.com/jmath1/Propjection.git
+  - cd propjection
+  - make deploy-prod
