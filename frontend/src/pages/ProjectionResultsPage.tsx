@@ -12,6 +12,7 @@ import ExpenseScheduleSection from '../components/ProjectionResults/ExpenseSched
 import ScenariosSection from '../components/ProjectionResults/ScenariosSection';
 import VerdictSection from '../components/ProjectionResults/VerdictSection';
 import TaxForecastSection from '../components/ProjectionResults/TaxForecastSection';
+import AIChatPanel from '../components/ProjectionResults/AIChatPanel';
 import { toDisplayPct, toDecimalPct } from '../utils/percentageFields';
 
 interface Section {
@@ -33,6 +34,7 @@ export default function ProjectionResultsPage() {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
   const [assumptionsPanelVisible, setAssumptionsPanelVisible] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
   const [sections, setSections] = useState<Section[]>([
     { id: 'basic', label: 'Basic Info', expanded: true },
     { id: 'property', label: 'Property & Acquisition', expanded: true },
@@ -223,20 +225,28 @@ export default function ProjectionResultsPage() {
         {/* Right: Results */}
         <div className={`${assumptionsPanelVisible ? 'lg:col-span-2' : 'lg:col-span-1'} overflow-y-auto`}>
           <div className="sticky top-0 bg-white dark:bg-slate-900 z-20 border-b border-gray-200 dark:border-slate-700">
-            <div className="flex gap-2 overflow-x-auto">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-3 font-medium border-b-2 transition-colors text-sm whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-primary-600 text-primary-600 dark:text-primary-400'
-                      : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-2 overflow-x-auto flex-1">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-4 py-3 font-medium border-b-2 transition-colors text-sm whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setChatOpen(true)}
+                className="ml-auto px-4 py-3 flex items-center gap-2 text-sm font-medium whitespace-nowrap text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950 transition-colors"
+              >
+                ✨ Ask AI
+              </button>
             </div>
           </div>
 
@@ -304,6 +314,12 @@ export default function ProjectionResultsPage() {
           </div>
         </div>
       </div>
+
+      <AIChatPanel
+        projectionId={parseInt(projectionId!)}
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+      />
     </div>
   );
 }

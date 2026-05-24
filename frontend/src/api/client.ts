@@ -42,6 +42,8 @@ export const projectionsAPI = {
   getScenarios: (id: number) => client.get(`/projections/${id}/scenarios/`),
   getVerdict: (id: number) => client.get(`/projections/${id}/verdict/`),
   getSummary: (id: number) => client.get<{ summary: string }>(`/projections/${id}/summary/`),
+  chat: (id: number, messages: { role: string; content: string }[]) =>
+    client.post<{ reply: string }>(`/projections/${id}/chat/`, { messages }),
   duplicate: (id: number, name?: string) =>
     client.post<Projection>(`/projections/${id}/duplicate/`, { name: name || undefined }),
 };

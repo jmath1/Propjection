@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from .models import Property, Projection, RentalUnit
 from .serializers import PropertySerializer, ProjectionSerializer, RentalUnitSerializer, ProjectionResultsSerializer, LoginSerializer, UserSerializer
 from .calculator import ProjectionCalculator
-from .summarizer import generate_deal_summary
+from .summarizer import generate_deal_summary, chat_with_deal
 
 
 class PropertyViewSet(viewsets.ModelViewSet):
@@ -86,6 +86,19 @@ class ProjectionViewSet(viewsets.ModelViewSet):
 
         summary_text = generate_deal_summary(projection, results)
         return Response({'summary': summary_text})
+
+    @action(detail=True, methods=['post'])
+    def chat(self, request, pk=None):
+        """Chat with AI assistant about the deal."""
+        projection = self.get_object()
+        messages = request.data.get('messages', [])
+        units = projection.units.all()
+
+        calculator = ProjectionCalculator(projection, units)
+        results = calculator.calculate()
+
+        reply = chat_with_deal(projection, results, messages)
+        return Response({'reply': reply})
 
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):
