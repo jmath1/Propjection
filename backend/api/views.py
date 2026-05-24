@@ -101,6 +101,73 @@ class ProjectionViewSet(viewsets.ModelViewSet):
         return Response({'reply': reply})
 
     @action(detail=True, methods=['post'])
+    def calculate(self, request, pk=None):
+        """Calculate projection results from current assumptions without saving."""
+        projection = self.get_object()
+
+        # Use units from request if provided, otherwise load from database
+        units_data = request.data.get('units', [])
+        if units_data:
+            # Create RentalUnit instances from request data (don't save to DB)
+            units = []
+            for unit_data in units_data:
+                unit = RentalUnit(
+                    id=unit_data.get('id'),
+                    projection_id=projection.id,
+                    label=unit_data.get('label'),
+                    monthly_rent=float(unit_data.get('monthly_rent', 0)),
+                    owner_occupied_years=int(unit_data.get('owner_occupied_years', 0)),
+                    order=unit_data.get('order', 0)
+                )
+                units.append(unit)
+        else:
+            units = list(projection.units.all())
+
+        # List of safe fields that can be updated for calculation
+        safe_fields = [
+            'name', 'purchase_year', 'analysis_horizon_years', 'sale_year',
+            'purchase_price', 'down_payment_pct', 'annual_appreciation_pct',
+            'transfer_tax_pct', 'lender_fees', 'title_insurance',
+            'inspection_appraisal', 'attorney_fees', 'other_closing_costs',
+            'interest_rate', 'term_years', 'pmi_rate',
+            'annual_rent_growth_pct', 'vacancy_rate_pct', 'property_mgmt_pct',
+            'property_tax_pct', 'insurance_annual', 'hoa_annual',
+            'maintenance_pct', 'utilities_annual', 'expense_inflation_pct',
+            'selling_costs_pct', 'scenario_appreciation_delta',
+            'scenario_rent_growth_delta', 'scenario_vacancy_delta',
+            'scenario_expense_inflation_delta', 'monthly_prepayment'
+        ]
+
+        # Update projection fields from request data (don't save to DB)
+        data = request.data
+        for field in safe_fields:
+            if field in data and field != 'units':
+                value = data[field]
+                # Convert to appropriate type for numeric fields
+                if value is not None:
+                    if isinstance(value, str):
+                        try:
+                            # Try to convert string to float
+                            value = float(value)
+                        except (ValueError, TypeError):
+                            # If conversion fails, skip this field
+                            continue
+                    elif isinstance(value, bool):
+                        # Keep booleans as-is
+                        pass
+                    elif not isinstance(value, (int, float)):
+                        # Skip unexpected types
+                        continue
+                setattr(projection, field, value)
+
+        # Run calculator with updated assumptions
+        calculator = ProjectionCalculator(projection, units)
+        results = calculator.calculate()
+
+        serializer = ProjectionResultsSerializer(results)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):
         """Clone a projection with a new name."""
         projection = self.get_object()

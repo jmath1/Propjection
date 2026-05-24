@@ -30,13 +30,9 @@ export default function EquitySection({ results, hoveredYear, onHoveredYearChang
     <div className="space-y-6">
       <div className="bg-white dark:bg-slate-800 p-4 rounded border border-gray-200 dark:border-slate-700">
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={results.equity_schedule.map((row: any) => ({
-            ...row,
-            home_value: Number(row.home_value),
-            loan_balance: Number(row.loan_balance),
-          }))} onMouseMove={(state) => {
+          <LineChart data={mergedData} onMouseMove={(state) => {
             if (state && state.isTooltipActive && state.activeTooltipIndex !== undefined) {
-              onHoveredYearChange(results.equity_schedule[state.activeTooltipIndex]?.year_num ?? null);
+              onHoveredYearChange(mergedData[state.activeTooltipIndex]?.year_num ?? null);
             }
           }} onMouseLeave={() => onHoveredYearChange(null)}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -44,8 +40,10 @@ export default function EquitySection({ results, hoveredYear, onHoveredYearChang
             <YAxis />
             <Tooltip formatter={(value: number) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`} />
             <Legend />
-            <Line type="monotone" dataKey="home_value" stroke="#10b981" name="Home Value" strokeWidth={2} />
-            <Line type="monotone" dataKey="loan_balance" stroke="#ef4444" name="Loan Balance" strokeWidth={2} />
+            <Line type="monotone" dataKey="home_value" stroke="#10b981" name="Home Value" strokeWidth={2} dot={{ r: 1 }} />
+            <Line type="monotone" dataKey="loan_balance" stroke="#ef4444" name="Loan Balance" strokeWidth={2} dot={{ r: 1 }} />
+            <Line type="monotone" dataKey="gross_equity" stroke="#3b82f6" name="Gross Equity" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 1 }} />
+            <Line type="monotone" dataKey="cumulative_interest" stroke="#f59e0b" name="Cumulative Interest" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 1 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>

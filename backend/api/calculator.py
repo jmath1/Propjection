@@ -16,8 +16,8 @@ class ProjectionCalculator:
         """Run all calculations and return comprehensive projection data."""
         derived = self._derive_inputs()
         income_schedule = self._calculate_income_schedule(derived)
-        expense_schedule = self._calculate_expense_schedule(derived)
         mortgage_schedule = self._calculate_mortgage_schedule(derived)
+        expense_schedule = self._calculate_expense_schedule(derived, mortgage_schedule)
         equity_schedule = self._calculate_equity_schedule(derived, income_schedule, expense_schedule, mortgage_schedule)
         cashflow_schedule = self._calculate_cashflow_schedule(income_schedule, expense_schedule, mortgage_schedule, equity_schedule)
 
@@ -59,49 +59,58 @@ class ProjectionCalculator:
 
     def _calc_acquisition_costs(self) -> Tuple[Decimal, Decimal]:
         """Calculate transfer tax and total acquisition costs."""
-        transfer_tax = self.p.purchase_price * self.p.transfer_tax_pct
+        purchase_price = Decimal(str(self.p.purchase_price))
+        transfer_tax_pct = Decimal(str(self.p.transfer_tax_pct))
+        transfer_tax = purchase_price * transfer_tax_pct
         total_acq_costs = (
             transfer_tax +
-            self.p.lender_fees +
-            self.p.title_insurance +
-            self.p.inspection_appraisal +
-            self.p.attorney_fees +
-            self.p.other_closing_costs
+            Decimal(str(self.p.lender_fees)) +
+            Decimal(str(self.p.title_insurance)) +
+            Decimal(str(self.p.inspection_appraisal)) +
+            Decimal(str(self.p.attorney_fees)) +
+            Decimal(str(self.p.other_closing_costs))
         )
         return transfer_tax, total_acq_costs
 
     def _calc_pmi(self, loan_amount: Decimal) -> Tuple[Decimal, Decimal]:
         """Calculate monthly and annual PMI."""
-        pmi_monthly = loan_amount * self.p.pmi_rate / Decimal(12)
+        pmi_rate = Decimal(str(self.p.pmi_rate))
+        pmi_monthly = loan_amount * pmi_rate / Decimal(12)
         pmi_annual = pmi_monthly * Decimal(12)
         return pmi_monthly, pmi_annual
 
     def _calc_rent_growth_factor(self, year_num: int) -> Decimal:
         """Calculate rent growth multiplier for a given year."""
-        return (1 + self.p.annual_rent_growth_pct) ** (year_num - 1)
+        annual_rent_growth = Decimal(str(self.p.annual_rent_growth_pct))
+        return (1 + annual_rent_growth) ** (year_num - 1)
 
     def _calc_unit_rent(self, unit, year_num: int, rent_growth_factor: Decimal) -> Decimal:
         """Calculate rent for a single unit, accounting for owner-occupied years."""
         if year_num <= unit.owner_occupied_years:
             return Decimal('0')
-        return unit.monthly_rent * rent_growth_factor
+        monthly_rent = Decimal(str(unit.monthly_rent))
+        return monthly_rent * rent_growth_factor
 
     def _calc_vacancy_loss(self, gross_annual_rent: Decimal) -> Decimal:
         """Calculate annual vacancy loss."""
-        return gross_annual_rent * self.p.vacancy_rate_pct
+        vacancy_rate = Decimal(str(self.p.vacancy_rate_pct))
+        return gross_annual_rent * vacancy_rate
 
     def _calc_mgmt_fee(self, gross_annual_rent: Decimal, vacancy_loss: Decimal) -> Decimal:
         """Calculate property management fee on effective rent."""
-        return (gross_annual_rent - vacancy_loss) * self.p.property_mgmt_pct
+        property_mgmt_pct = Decimal(str(self.p.property_mgmt_pct))
+        return (gross_annual_rent - vacancy_loss) * property_mgmt_pct
 
     def _calc_home_value(self, year_num: int) -> Decimal:
         """Calculate home value after appreciation."""
-        purchase_price = self.p.purchase_price
-        return purchase_price * (1 + self.p.annual_appreciation_pct) ** (year_num - 1)
+        purchase_price = Decimal(str(self.p.purchase_price))
+        annual_appreciation = Decimal(str(self.p.annual_appreciation_pct))
+        return purchase_price * (1 + annual_appreciation) ** (year_num - 1)
 
     def _calc_expense_inflation_factor(self, year_num: int) -> Decimal:
         """Calculate expense inflation multiplier for a given year."""
-        return (1 + self.p.expense_inflation_pct) ** (year_num - 1)
+        expense_inflation = Decimal(str(self.p.expense_inflation_pct))
+        return (1 + expense_inflation) ** (year_num - 1)
 
     def _amortize_year(self, balance: Decimal, monthly_rate: Decimal, monthly_payment: Decimal, monthly_prepayment: Decimal = Decimal('0')) -> Tuple[Decimal, Decimal, Decimal]:
         """Amortize one year of mortgage payments. Returns (ending_balance, annual_interest, annual_principal)."""
@@ -121,7 +130,8 @@ class ProjectionCalculator:
 
     def _calc_pmi_for_year(self, balance: Decimal, loan_amount: Decimal) -> Decimal:
         """Calculate PMI for a year, accounting for LTV-based drop-off (PMI drops at 80% LTV)."""
-        pmi = self.p.pmi_rate * loan_amount / Decimal(12) * Decimal(12)
+        pmi_rate = Decimal(str(self.p.pmi_rate))
+        pmi = pmi_rate * loan_amount / Decimal(12) * Decimal(12)
         if balance > 0:
             ltv = balance / loan_amount
             if ltv <= Decimal('0.80'):
@@ -143,7 +153,8 @@ class ProjectionCalculator:
     def _calc_sale_proceeds(self, home_value: Decimal, loan_balance: Decimal, year_num: int) -> Tuple[Decimal, Decimal]:
         """Calculate net proceeds and total return if property is sold this year."""
         if self.p.sale_year == year_num and self.p.sale_year > 0:
-            selling_costs = home_value * self.p.selling_costs_pct
+            selling_costs_pct = Decimal(str(self.p.selling_costs_pct))
+            selling_costs = home_value * selling_costs_pct
             net_proceeds = home_value - loan_balance - selling_costs
             return net_proceeds, net_proceeds
         return Decimal('0'), Decimal('0')
@@ -204,19 +215,21 @@ class ProjectionCalculator:
 
     def _derive_inputs(self) -> Dict[str, Decimal]:
         """Calculate derived inputs from assumptions."""
-        purchase_price = self.p.purchase_price
-        down_payment_pct = self.p.down_payment_pct
+        # Convert all inputs to Decimal to ensure consistent arithmetic
+        purchase_price = Decimal(str(self.p.purchase_price))
+        down_payment_pct = Decimal(str(self.p.down_payment_pct))
         down_payment = purchase_price * down_payment_pct
 
         transfer_tax, total_acq_costs = self._calc_acquisition_costs()
         total_cash_to_close = down_payment + total_acq_costs
 
         loan_amount = purchase_price - down_payment
-        monthly_payment = self._calc_monthly_payment(loan_amount, self.p.interest_rate, self.p.term_years)
+        interest_rate = Decimal(str(self.p.interest_rate))
+        monthly_payment = self._calc_monthly_payment(loan_amount, interest_rate, self.p.term_years)
         annual_payment = monthly_payment * Decimal(12)
 
         pmi_monthly, pmi_annual = self._calc_pmi(loan_amount)
-        monthly_rate = self.p.interest_rate / Decimal(12)
+        monthly_rate = interest_rate / Decimal(12)
 
         derived = {
             'purchase_price': purchase_price,
@@ -235,13 +248,13 @@ class ProjectionCalculator:
 
         # Handle refinancing if configured
         refi_year = int(getattr(self.p, 'refinance_year', 0) or 0)
-        refi_rate = self.p.refinance_rate if getattr(self.p, 'refinance_rate', None) else None
+        refi_rate = Decimal(str(self.p.refinance_rate)) if getattr(self.p, 'refinance_rate', None) else None
         monthly_prepayment = Decimal(str(self.p.monthly_prepayment)) if hasattr(self.p, 'monthly_prepayment') else Decimal('0')
 
         if refi_year > 0 and refi_rate and refi_rate > 0:
             # Simulate amortization to find balance just before refi year
             refi_balance = loan_amount
-            refi_mr = self.p.interest_rate / Decimal(12)
+            refi_mr = interest_rate / Decimal(12)
             for _ in range(refi_year - 1):
                 refi_balance, _, _ = self._amortize_year(refi_balance, refi_mr, monthly_payment, monthly_prepayment)
             remaining_term = max(self.p.term_years - (refi_year - 1), 1)
@@ -293,7 +306,7 @@ class ProjectionCalculator:
 
         return schedule
 
-    def _calculate_expense_schedule(self, derived: Dict) -> List[Dict]:
+    def _calculate_expense_schedule(self, derived: Dict, mortgage_schedule: List[Dict]) -> List[Dict]:
         """Calculate yearly operating expense schedule."""
         schedule = []
 
@@ -303,21 +316,28 @@ class ProjectionCalculator:
             home_value = self._calc_home_value(year_num)
             expense_inflation_factor = self._calc_expense_inflation_factor(year_num)
 
-            property_tax = home_value * self.p.property_tax_pct
-            insurance = self.p.insurance_annual * expense_inflation_factor
-            hoa = self.p.hoa_annual * expense_inflation_factor
-            maintenance = home_value * self.p.maintenance_pct
-            utilities = self.p.utilities_annual * expense_inflation_factor
+            property_tax_pct = Decimal(str(self.p.property_tax_pct))
+            insurance_annual = Decimal(str(self.p.insurance_annual))
+            hoa_annual = Decimal(str(self.p.hoa_annual))
+            maintenance_pct = Decimal(str(self.p.maintenance_pct))
+            utilities_annual = Decimal(str(self.p.utilities_annual))
+
+            property_tax = home_value * property_tax_pct
+            insurance = insurance_annual * expense_inflation_factor
+            hoa = hoa_annual * expense_inflation_factor
+            maintenance = home_value * maintenance_pct
+            utilities = utilities_annual * expense_inflation_factor
 
             total_operating = property_tax + insurance + hoa + maintenance + utilities
 
-            pmi = derived['pmi_annual']
-            if derived.get('has_refinance') and year_num >= derived['refinance_year']:
-                annual_payment = derived['refinance_annual_payment']
-            else:
-                annual_payment = derived['annual_payment']
-            debt_service = annual_payment + pmi
-            all_in_cost = debt_service + total_operating
+            # Get debt service from mortgage schedule to ensure consistency
+            mortgage_row = mortgage_schedule[year_num - 1]
+            annual_payment = Decimal(str(mortgage_row['annual_payment']))
+            pmi = Decimal(str(mortgage_row['pmi']))
+            # Once loan is paid off (balance = 0), debt service is $0
+            ending_balance = Decimal(str(mortgage_row['ending_balance']))
+            debt_service = (annual_payment + pmi) if ending_balance > 0 else Decimal('0')
+            all_in_cost = debt_service + Decimal(str(total_operating))
 
             schedule.append({
                 'year_num': year_num,
@@ -343,29 +363,40 @@ class ProjectionCalculator:
         monthly_prepayment = Decimal(str(self.p.monthly_prepayment)) if hasattr(self.p, 'monthly_prepayment') else Decimal('0')
         cumulative_interest = Decimal('0')
         loan_amount = derived['loan_amount']
+        loan_paid_off = False
 
         for year_num in range(1, self.p.analysis_horizon_years + 1):
             # Switch to refinanced rate/payment if we hit the refinance year
-            if derived.get('has_refinance') and year_num == derived['refinance_year']:
+            if derived.get('has_refinance') and year_num == derived['refinance_year'] and not loan_paid_off:
                 monthly_rate = derived['refinance_monthly_rate']
                 monthly_payment = derived['refinance_monthly_payment']
 
             beginning_balance = balance
 
-            balance, annual_interest, annual_principal = self._amortize_year(balance, monthly_rate, monthly_payment, monthly_prepayment)
-            cumulative_interest += annual_interest
+            # If loan is already paid off, no more payments
+            if loan_paid_off or balance <= Decimal('0'):
+                loan_paid_off = True
+                annual_interest = Decimal('0')
+                annual_principal = Decimal('0')
+                annual_payment = Decimal('0')
+                balance = Decimal('0')
+                pmi = Decimal('0')
+            else:
+                balance, annual_interest, annual_principal = self._amortize_year(balance, monthly_rate, monthly_payment, monthly_prepayment)
+                cumulative_interest += annual_interest
+                annual_payment = monthly_payment * Decimal(12)
+                pmi = self._calc_pmi_for_year(balance, loan_amount)
 
-            pmi = self._calc_pmi_for_year(balance, loan_amount)
             refinanced = derived.get('has_refinance') and year_num >= derived.get('refinance_year', 0)
 
             schedule.append({
                 'year_num': year_num,
                 'calendar_year': self.p.purchase_year + year_num - 1,
                 'beginning_balance': float(beginning_balance),
-                'annual_payment': float(monthly_payment * Decimal(12)),
+                'annual_payment': float(annual_payment),
                 'interest_paid': float(annual_interest),
                 'principal_paid': float(annual_principal),
-                'ending_balance': float(balance),
+                'ending_balance': float(max(balance, Decimal('0'))),
                 'cumulative_interest': float(cumulative_interest),
                 'pmi': float(pmi),
                 'refinanced': refinanced,
@@ -420,10 +451,16 @@ class ProjectionCalculator:
         schedule = []
         cumulative_cf = Decimal('0')
 
-        for year_num in range(1, len(income_schedule) + 1):
+        for year_num in range(1, self.p.analysis_horizon_years + 1):
             income = Decimal(str(income_schedule[year_num - 1]['effective_rental_income']))
             operating_expenses = Decimal(str(expense_schedule[year_num - 1]['total_operating']))
-            debt_service = Decimal(str(expense_schedule[year_num - 1]['debt_service']))
+            # Use debt service from mortgage schedule to account for early payoff from prepayments
+            mortgage_row = mortgage_schedule[year_num - 1]
+            annual_payment = Decimal(str(mortgage_row['annual_payment']))
+            pmi = Decimal(str(mortgage_row['pmi']))
+            # Once loan is paid off (balance = 0), debt service is $0
+            ending_balance = Decimal(str(mortgage_row['ending_balance']))
+            debt_service = (annual_payment + pmi) if ending_balance > 0 else Decimal('0')
 
             noi = self._calc_noi(income, operating_expenses)
             annual_cf = noi - debt_service
@@ -554,9 +591,9 @@ class ProjectionCalculator:
             gross_rental_income = Decimal(str(inc_data.get('gross_annual_rent', 0)))
             mortgage_interest = Decimal(str(mort_data.get('interest_paid', 0)))
             property_tax = Decimal(str(exp_data.get('property_tax', 0)))
-            repairs = self.p.repairs_annual
-            insurance = self.p.insurance_annual
-            utilities = self.p.utilities_annual
+            repairs = Decimal(str(getattr(self.p, 'repairs_annual', 0)))
+            insurance = Decimal(str(self.p.insurance_annual))
+            utilities = Decimal(str(self.p.utilities_annual))
 
             total_deductions = mortgage_interest + property_tax + repairs + insurance + utilities
             taxable_income = gross_rental_income - total_deductions

@@ -19,7 +19,7 @@ export default function IncomeScheduleSection({ results, hoveredYear, onHoveredY
           </tr>
         </thead>
         <tbody>
-          {results.income_schedule.slice(0, 10).map((row) => (
+          {results.income_schedule.map((row) => (
             <tr
               key={row.year_num}
               onMouseEnter={() => onHoveredYearChange(row.year_num)}

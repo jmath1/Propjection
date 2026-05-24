@@ -32,6 +32,7 @@ export default function ProjectionResultsPage() {
   const [activeTab, setActiveTab] = useState<'summary' | 'income' | 'expenses' | 'cashflow' | 'equity' | 'scenarios' | 'verdict' | 'tax_forecast'>('summary');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [calcStatus, setCalcStatus] = useState<'idle' | 'calculating'>('idle');
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
   const [assumptionsPanelVisible, setAssumptionsPanelVisible] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
@@ -45,11 +46,19 @@ export default function ProjectionResultsPage() {
     { id: 'scenarios', label: 'Scenario Margins', expanded: false },
     { id: 'units', label: 'Rental Units', expanded: true },
   ]);
-  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recalcTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadProjection();
   }, [projectionId]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (recalcTimerRef.current) clearTimeout(recalcTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -87,19 +96,71 @@ export default function ProjectionResultsPage() {
     }
   };
 
+  const recalculateWithProjection = async (proj: Projection) => {
+    if (!proj.id) return;
+    try {
+      console.log('recalculateWithProjection called with units:', units);
+      setCalcStatus('calculating');
+      const projectionToSend = toDecimalPct(proj);
+      const resultsResponse = await projectionsAPI.calculate(proj.id, projectionToSend, units);
+      console.log('recalculateWithProjection got response, setting results');
+      setResults(resultsResponse.data);
+      setCalcStatus('idle');
+    } catch (error) {
+      console.error('Failed to recalculate with new assumptions:', error);
+      setCalcStatus('idle');
+    }
+  };
+
+  const recalculateWithUnits = async (proj: Projection, updatedUnits: RentalUnit[]) => {
+    if (!proj.id) return;
+    try {
+      console.log('recalculateWithUnits called with units:', updatedUnits);
+      setCalcStatus('calculating');
+      const projectionToSend = toDecimalPct(proj);
+      const resultsResponse = await projectionsAPI.calculate(proj.id, projectionToSend, updatedUnits);
+      console.log('recalculateWithUnits got response, setting results');
+      setResults(resultsResponse.data);
+      setCalcStatus('idle');
+    } catch (error) {
+      console.error('Failed to recalculate with new units:', error);
+      setCalcStatus('idle');
+    }
+  };
+
   const handleProjectionChange = useCallback((field: keyof Projection, value: any) => {
     if (!projection) return;
     const updated = { ...projection, [field]: value };
     setProjection(updated);
     setUnsavedChanges(true);
+
+    // Debounced recalculation for real-time updates
+    if (recalcTimerRef.current) {
+      clearTimeout(recalcTimerRef.current);
+    }
+    recalcTimerRef.current = setTimeout(() => {
+      recalculateWithProjection(updated);
+    }, 500);
   }, [projection]);
 
   const handleUnitChange = useCallback((index: number, field: keyof RentalUnit, value: any) => {
     const updated = [...units];
     updated[index] = { ...updated[index], [field]: value };
+    console.log(`Unit ${index} ${String(field)} changed to`, value, 'updated units:', updated);
     setUnits(updated);
     setUnsavedChanges(true);
-  }, [units]);
+
+    // Debounced recalculation for real-time updates
+    if (recalcTimerRef.current) {
+      clearTimeout(recalcTimerRef.current);
+    }
+    recalcTimerRef.current = setTimeout(() => {
+      if (projection) {
+        console.log('Triggering recalculateWithUnits with units:', updated);
+        recalculateWithUnits(projection, updated);
+      }
+    }, 500);
+  }, [units, projection]);
 
   const handleUnitBlur = useCallback(() => {
     if (projection) {

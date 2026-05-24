@@ -44,6 +44,8 @@ export const projectionsAPI = {
   getSummary: (id: number) => client.get<{ summary: string }>(`/projections/${id}/summary/`),
   chat: (id: number, messages: { role: string; content: string }[]) =>
     client.post<{ reply: string }>(`/projections/${id}/chat/`, { messages }),
+  calculate: (id: number, assumptions: Partial<Projection>, units?: RentalUnit[]) =>
+    client.post<ProjectionResults>(`/projections/${id}/calculate/`, { ...assumptions, units }),
   duplicate: (id: number, name?: string) =>
     client.post<Projection>(`/projections/${id}/duplicate/`, { name: name || undefined }),
 };

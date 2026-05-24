@@ -26,7 +26,7 @@ export default function ExpenseScheduleSection({ results, projection, hoveredYea
             </tr>
           </thead>
           <tbody>
-            {results.expense_schedule.slice(0, 10).map((row) => (
+            {results.expense_schedule.map((row) => (
               <tr
                 key={row.year_num}
                 onMouseEnter={() => onHoveredYearChange(row.year_num)}
