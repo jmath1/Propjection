@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth.models import User
 from .models import Property, Projection, RentalUnit
 from .calculator import ProjectionCalculator
 
@@ -27,6 +28,7 @@ class ProjectionSerializer(serializers.ModelSerializer):
             'selling_costs_pct',
             'scenario_appreciation_delta', 'scenario_rent_growth_delta',
             'scenario_vacancy_delta', 'scenario_expense_inflation_delta',
+            'estimated_annual_income', 'repairs_annual',
             'units', 'created_at', 'updated_at'
         ]
 
@@ -50,3 +52,25 @@ class ProjectionResultsSerializer(serializers.Serializer):
     base_case = serializers.DictField()
     scenarios = serializers.DictField()
     verdict = serializers.DictField()
+    tax_forecast = serializers.ListField()
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email']
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
+    token = serializers.CharField(read_only=True)
+    user = UserSerializer(read_only=True)
+
+    def validate(self, data):
+        from django.contrib.auth import authenticate
+        user = authenticate(username=data.get('username'), password=data.get('password'))
+        if not user:
+            raise serializers.ValidationError('Invalid credentials')
+        data['user'] = user
+        return data

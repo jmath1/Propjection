@@ -30,6 +30,7 @@ class ProjectionCalculator:
 
         scenarios = self._calculate_scenarios(derived, base_case)
         verdict = self._calculate_verdict(derived, income_schedule, mortgage_schedule, cashflow_schedule)
+        tax_forecast = self._calculate_tax_forecast(derived, income_schedule, mortgage_schedule, expense_schedule)
 
         return {
             'derived': derived,
@@ -41,6 +42,7 @@ class ProjectionCalculator:
             'base_case': base_case,
             'scenarios': scenarios,
             'verdict': verdict,
+            'tax_forecast': tax_forecast,
         }
 
     # ==================== CALCULATION HELPERS ====================
@@ -501,3 +503,39 @@ class ProjectionCalculator:
                 'Implied IRR ≥ 10%'
             ),
         }
+
+    def _calculate_tax_forecast(self, derived: Dict, income_schedule: List[Dict], mortgage_schedule: List[Dict], expense_schedule: List[Dict]) -> List[Dict]:
+        """Calculate estimated tax liability based on rental income and deductions."""
+        tax_forecast = []
+
+        for year_num in range(self.p.analysis_horizon_years):
+            inc_data = income_schedule[year_num] if year_num < len(income_schedule) else {}
+            mort_data = mortgage_schedule[year_num] if year_num < len(mortgage_schedule) else {}
+            exp_data = expense_schedule[year_num] if year_num < len(expense_schedule) else {}
+
+            gross_rental_income = Decimal(str(inc_data.get('gross_annual_rent', 0)))
+            mortgage_interest = Decimal(str(mort_data.get('interest_paid', 0)))
+            property_tax = Decimal(str(exp_data.get('property_tax', 0)))
+            repairs = self.p.repairs_annual
+            insurance = self.p.insurance_annual
+            utilities = self.p.utilities_annual
+
+            total_deductions = mortgage_interest + property_tax + repairs + insurance + utilities
+            taxable_income = gross_rental_income - total_deductions
+
+            estimated_tax = max(taxable_income * Decimal('0.25'), Decimal(0))
+
+            tax_forecast.append({
+                'year': year_num + 1,
+                'gross_rental_income': float(gross_rental_income),
+                'mortgage_interest_deduction': float(mortgage_interest),
+                'property_tax_deduction': float(property_tax),
+                'repairs_deduction': float(repairs),
+                'insurance_deduction': float(insurance),
+                'utilities_deduction': float(utilities),
+                'total_deductions': float(total_deductions),
+                'taxable_income': float(taxable_income),
+                'estimated_tax_liability': float(estimated_tax),
+            })
+
+        return tax_forecast

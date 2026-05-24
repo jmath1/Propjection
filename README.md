@@ -191,7 +191,9 @@ make shell          # Django shell
 - [ ] User authentication & multi-user support
 - [ ] Export projections to PDF/Excel
 - [ ] Historical comparison & version tracking
-- [ ] Advanced scenario modeling
+- [ ] Tax Forecast
+- [ ] Combinining scenarios for a cummulative model over a timeline
+- [ ] Other Advanced scenario modeling
 - [ ] Team collaboration
 - [ ] Mobile app
 

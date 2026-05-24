@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from decimal import Decimal
 
 
@@ -12,6 +13,7 @@ class Property(models.Model):
         ('other', 'Other'),
     ]
 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='properties', null=True, blank=True)
     name = models.CharField(max_length=200)
     address = models.TextField(blank=True)
     property_type = models.CharField(max_length=20, choices=PROPERTY_TYPE_CHOICES)
@@ -74,6 +76,10 @@ class Projection(models.Model):
     scenario_rent_growth_delta = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.0300'))  # 3pp
     scenario_vacancy_delta = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.0500'))  # 5pp
     scenario_expense_inflation_delta = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.0150'))  # 1.5pp
+
+    # Tax Forecast
+    estimated_annual_income = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    repairs_annual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

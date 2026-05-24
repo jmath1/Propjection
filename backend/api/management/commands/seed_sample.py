@@ -1,14 +1,32 @@
 from django.core.management.base import BaseCommand
+from django.contrib.auth.models import User
 from decimal import Decimal
 from api.models import Property, Projection, RentalUnit
 
 
 class Command(BaseCommand):
-    help = 'Load sample triplex data from the spreadsheet'
+    help = 'Load sample triplex data and create admin user'
 
     def handle(self, *args, **options):
+        # Create admin user if it doesn't exist
+        admin_user, created = User.objects.get_or_create(
+            username='admin',
+            defaults={
+                'email': 'admin@propjection.local',
+                'is_staff': True,
+                'is_superuser': True,
+            }
+        )
+        if created:
+            admin_user.set_password('admin')
+            admin_user.save()
+            self.stdout.write(f'Created admin user: {admin_user.username}')
+        else:
+            self.stdout.write(f'Admin user already exists: {admin_user.username}')
+
         # Create property
         property = Property.objects.create(
+            user=admin_user,
             name='1210 S 10th Street',
             address='1210 S 10th Street',
             property_type='triplex',
@@ -69,4 +87,4 @@ class Command(BaseCommand):
             )
             self.stdout.write(f'  Created {unit.label}: ${unit.monthly_rent}/month')
 
-        self.stdout.write(self.style.SUCCESS(f'Successfully seeded sample triplex'))
+        self.stdout.write(self.style.SUCCESS(f'Successfully seeded sample triplex with admin user'))

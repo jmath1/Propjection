@@ -10,6 +10,15 @@ const client = axios.create({
   },
 });
 
+// Add token to all requests
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Token ${token}`;
+  }
+  return config;
+});
+
 // Properties
 export const propertiesAPI = {
   list: () => client.get<Property[]>('/properties/'),
@@ -46,6 +55,23 @@ export const unitsAPI = {
   create: (data: Partial<RentalUnit>) => client.post<RentalUnit>('/units/', data),
   update: (id: number, data: Partial<RentalUnit>) => client.patch<RentalUnit>(`/units/${id}/`, data),
   delete: (id: number) => client.delete(`/units/${id}/`),
+};
+
+// Auth
+interface LoginResponse {
+  token: string;
+  user: {
+    id: number;
+    username: string;
+    email: string;
+  };
+}
+
+export const authAPI = {
+  login: (username: string, password: string) =>
+    client.post<LoginResponse>('/auth/login/', { username, password }),
+  register: (username: string, password: string, email?: string) =>
+    client.post<LoginResponse>('/auth/register/', { username, password, email }),
 };
 
 export default client;

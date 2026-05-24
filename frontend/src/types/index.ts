@@ -39,6 +39,8 @@ export interface Projection {
   scenario_rent_growth_delta: number;
   scenario_vacancy_delta: number;
   scenario_expense_inflation_delta: number;
+  estimated_annual_income: number;
+  repairs_annual: number;
   units?: RentalUnit[];
   created_at?: string;
   updated_at?: string;
@@ -69,6 +71,7 @@ export interface ProjectionResults {
     bear: ScenarioAssumptions;
   };
   verdict: Record<string, VerdictMetric>;
+  tax_forecast: TaxForecastRow[];
 }
 
 export interface IncomeRow {
@@ -135,6 +138,19 @@ export interface CashflowRow {
   dscr: number;
   cash_on_cash_return: number;
   cumulative_cash_flow: number;
+}
+
+export interface TaxForecastRow {
+  year: number;
+  gross_rental_income: number;
+  mortgage_interest_deduction: number;
+  property_tax_deduction: number;
+  repairs_deduction: number;
+  insurance_deduction: number;
+  utilities_deduction: number;
+  total_deductions: number;
+  taxable_income: number;
+  estimated_tax_liability: number;
 }
 
 export interface ScenarioAssumptions {

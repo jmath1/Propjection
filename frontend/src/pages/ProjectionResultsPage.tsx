@@ -25,7 +25,7 @@ export default function ProjectionResultsPage() {
   const [units, setUnits] = useState<RentalUnit[]>([]);
   const [results, setResults] = useState<ProjectionResults | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'summary' | 'income' | 'expenses' | 'mortgage' | 'cashflow' | 'equity' | 'scenarios' | 'verdict'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'income' | 'expenses' | 'mortgage' | 'cashflow' | 'equity' | 'scenarios' | 'verdict' | 'tax_forecast'>('summary');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
@@ -36,6 +36,7 @@ export default function ProjectionResultsPage() {
     { id: 'mortgage', label: 'Mortgage', expanded: true },
     { id: 'income', label: 'Rental Income', expanded: false },
     { id: 'expenses', label: 'Operating Expenses', expanded: false },
+    { id: 'tax', label: 'Tax Assumptions', expanded: false },
     { id: 'scenarios', label: 'Scenario Margins', expanded: false },
     { id: 'units', label: 'Rental Units', expanded: true },
   ]);
@@ -117,6 +118,7 @@ export default function ProjectionResultsPage() {
     { id: 'expenses', label: 'Expenses' },
     { id: 'cashflow', label: 'Cash Flow' },
     { id: 'equity', label: 'Equity' },
+    { id: 'tax_forecast', label: 'Tax Forecast' },
     { id: 'scenarios', label: 'Scenarios' },
     { id: 'verdict', label: 'Verdict' },
   ];
@@ -466,6 +468,31 @@ export default function ProjectionResultsPage() {
                   step="0.001"
                   value={projection.selling_costs_pct || 0}
                   onChange={(e) => handleProjectionChange('selling_costs_pct', parseFloat(e.target.value))}
+                  className="form-input text-sm"
+                />
+              </FormField>
+            </CollapsibleSection>
+
+            {/* Tax Assumptions */}
+            <CollapsibleSection
+              id="tax"
+              label="Tax Assumptions"
+              expanded={sections.find((s: Section) => s.id === 'tax')?.expanded ?? false}
+              onToggle={toggleSection}
+            >
+              <FormField label="Estimated Annual Income 2026 $" compact>
+                <input
+                  type="number"
+                  value={projection.estimated_annual_income || 0}
+                  onChange={(e) => handleProjectionChange('estimated_annual_income', parseFloat(e.target.value))}
+                  className="form-input text-sm"
+                />
+              </FormField>
+              <FormField label="Annual Repairs (Deductible) $" compact>
+                <input
+                  type="number"
+                  value={projection.repairs_annual || 0}
+                  onChange={(e) => handleProjectionChange('repairs_annual', parseFloat(e.target.value))}
                   className="form-input text-sm"
                 />
               </FormField>
@@ -1003,6 +1030,74 @@ export default function ProjectionResultsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Tax Forecast Tab */}
+          {activeTab === 'tax_forecast' && (
+            <div>
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                <div className="card bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800">
+                  <div className="text-sm text-blue-700 dark:text-blue-200 font-semibold">Total Gross Income</div>
+                  <div className="text-3xl font-bold text-blue-900 dark:text-blue-50 mt-2">
+                    ${results.tax_forecast.reduce((sum, row) => sum + row.gross_rental_income, 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+                <div className="card bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900 dark:to-orange-800">
+                  <div className="text-sm text-orange-700 dark:text-orange-200 font-semibold">Total Deductions</div>
+                  <div className="text-3xl font-bold text-orange-900 dark:text-orange-50 mt-2">
+                    ${results.tax_forecast.reduce((sum, row) => sum + row.total_deductions, 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+                <div className="card bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900 dark:to-red-800">
+                  <div className="text-sm text-red-700 dark:text-red-200 font-semibold">Est. Total Tax</div>
+                  <div className="text-3xl font-bold text-red-900 dark:text-red-50 mt-2">
+                    ${results.tax_forecast.reduce((sum, row) => sum + row.estimated_tax_liability, 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-300 dark:border-slate-600">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Year</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Gross Rental Income</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Mortgage Interest</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Property Tax</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Repairs</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Insurance</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Utilities</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Total Deductions</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Taxable Income</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-200">Est. Tax (25%)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.tax_forecast.map((row, idx) => (
+                      <tr
+                        key={idx}
+                        className={`border-b border-gray-200 dark:border-slate-700 transition-colors ${
+                          hoveredYear === row.year ? 'bg-primary-50 dark:bg-slate-700' : ''
+                        }`}
+                        onMouseEnter={() => setHoveredYear(row.year)}
+                        onMouseLeave={() => setHoveredYear(null)}
+                      >
+                        <td className="py-2 px-4 text-gray-700 dark:text-gray-300 font-medium">{row.year}</td>
+                        <td className="py-2 px-4 text-right text-gray-700 dark:text-gray-300">${row.gross_rental_income.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-4 text-right text-gray-700 dark:text-gray-300">${row.mortgage_interest_deduction.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-4 text-right text-gray-700 dark:text-gray-300">${row.property_tax_deduction.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-4 text-right text-gray-700 dark:text-gray-300">${row.repairs_deduction.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-4 text-right text-gray-700 dark:text-gray-300">${row.insurance_deduction.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-4 text-right text-gray-700 dark:text-gray-300">${row.utilities_deduction.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-4 text-right text-gray-900 dark:text-white font-semibold">${row.total_deductions.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-4 text-right text-gray-900 dark:text-white font-semibold">${row.taxable_income.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                        <td className="py-2 px-4 text-right text-red-600 dark:text-red-400 font-semibold">${row.estimated_tax_liability.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
           </div>
